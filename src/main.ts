@@ -1,10 +1,39 @@
+import { invoke } from "@tauri-apps/api/core";
+
+const COLORS = {
+  yellow: "gold",
+  darkyellow: "goldenrod",
+  black: "black",
+  gray: "lightgray",
+  darkgray: "darkgray",
+  red: "red",
+  white: "white",
+};
+
+const FONTS = {
+  controls: "JetBrains Mono, monospace",
+  loading: "Arial",
+  wheel: "JetBrains Mono, monospace",
+  word: "JetBrains Mono, monospace",
+}
+
+const SIZES = {
+  big: (game: Game) => game.height / 10,
+  medium: (game: Game) => game.height / 15,
+  small: (game: Game) => game.height / 28,
+  tiny: (game: Game) => game.height / 40,
+}
+
 interface Game {
   width: number;
   height: number;
   ctx: CanvasRenderingContext2D;
 
+  puzzle_promise: Promise<unknown>;
   letters: string[];
+  words: Set<string>;
   word: string;
+  found: Set<string>;
 
   mouseX: number;
   mouseY: number;
@@ -20,6 +49,11 @@ window.addEventListener("DOMContentLoaded", () => {
     console.error("Error initializing game");
     return;
   }
+
+  game.puzzle_promise.then(message => {
+    game.letters = message[0];
+    game.words = new Set(message[1]);
+  });
 
   window.addEventListener("click", (event) => {
     console.log("click");
@@ -59,13 +93,21 @@ function init(): Game | undefined {
     return;
   }
 
+  const letters: string[] = [];
+  const words: Set<string> = new Set();
+
+  const puzzle_promise = invoke("new_puzzle");
+
   return {
     width,
     height,
     ctx,
 
-    letters: ["A", "B", "C", "D", "E", "F", "G"],
+    puzzle_promise,
+    letters,
     word: "",
+    words,
+    found: new Set(),
 
     mouseX: -1,
     mouseY: -1,
@@ -79,6 +121,11 @@ function init(): Game | undefined {
 function main(time: DOMHighResTimeStamp, game: Game) {
   game.ctx.clearRect(0, 0, game.width, game.height);
 
+  if (game.letters.length === 0) {
+    loading(time, game);
+    return;
+  }
+
   const clicked = wheel(time, game);
   game.word += clicked;
   if (clicked) {
@@ -90,14 +137,26 @@ function main(time: DOMHighResTimeStamp, game: Game) {
   controls(time, game);
 }
 
+function loading(time: DOMHighResTimeStamp, game: Game) {
+  console.log("Loading...");
+  window.requestAnimationFrame((time) => main(time, game));
+
+  game.ctx.font = `bold ${SIZES.big(game)}px ${FONTS.loading}`;
+  game.ctx.textAlign = "left";
+  game.ctx.textBaseline = "middle";
+
+  const dots = ".".repeat((time / 250) % 4);
+  game.ctx.fillText(`Loading${dots}`, game.width / 2 - game.ctx.measureText("Loading. . .").width / 2, game.height / 2);
+}
+
 /**
  * Draw the hexagon letter wheel
  */
 function wheel(time: DOMHighResTimeStamp, game: Game) {
   let clicked = "";
-  const hexRadius = game.height / 10;
+  const hexRadius = SIZES.big(game);
 
-  game.ctx.font = `bold ${hexRadius}px JetBrains Mono, monospace`;
+  game.ctx.font = `bold ${hexRadius}px ${FONTS.wheel}`
   game.ctx.textAlign = "center";
   game.ctx.textBaseline = "middle";
 
@@ -111,12 +170,12 @@ function wheel(time: DOMHighResTimeStamp, game: Game) {
       game.clickedHex = 0;
       game.clickedHexTime = time;
       clicked = game.letters[0];
-      game.ctx.fillStyle = "red";
+      game.ctx.fillStyle = COLORS.darkyellow;
     } else {
-      game.ctx.fillStyle = "green";
+      game.ctx.fillStyle = COLORS.darkyellow;
     }
   } else {
-    game.ctx.fillStyle = "yellow";
+    game.ctx.fillStyle = COLORS.yellow;
   }
   if (game.clickedHex === 0 && game.clickedHexTime != null) {
     const duration = 200;
@@ -135,7 +194,7 @@ function wheel(time: DOMHighResTimeStamp, game: Game) {
     }
   }
   game.ctx.fill();
-  game.ctx.fillStyle = "black";
+  game.ctx.fillStyle = COLORS.black;
   game.ctx.fillText(game.letters[0], centerX, centerY);
 
   // Surrounding hexagons
@@ -151,12 +210,12 @@ function wheel(time: DOMHighResTimeStamp, game: Game) {
         game.clickedHex = i;
         game.clickedHexTime = time;
         clicked = game.letters[i];
-        game.ctx.fillStyle = "red";
+        game.ctx.fillStyle = COLORS.darkgray;
       } else {
-        game.ctx.fillStyle = "green";
+        game.ctx.fillStyle = COLORS.darkgray;
       }
     } else {
-      game.ctx.fillStyle = "gray";
+      game.ctx.fillStyle = COLORS.gray;
     }
     if (game.clickedHex === i && game.clickedHexTime != null) {
       const duration = 200;
@@ -175,7 +234,7 @@ function wheel(time: DOMHighResTimeStamp, game: Game) {
       }
     }
     game.ctx.fill();
-    game.ctx.fillStyle = "black";
+    game.ctx.fillStyle = COLORS.black;
     game.ctx.fillText(game.letters[i], x, y);
   }
 
@@ -183,13 +242,13 @@ function wheel(time: DOMHighResTimeStamp, game: Game) {
 }
 
 function word(time: DOMHighResTimeStamp, game: Game) {
-  let size = game.height / 15;
-  game.ctx.font = `bold ${size}px JetBrains Mono, monospace`;
+  let size = SIZES.medium(game);
+  game.ctx.font = `bold ${size}px ${FONTS.word}`;
   game.ctx.textAlign = "center";
   game.ctx.textBaseline = "middle";
   while (game.ctx.measureText(game.word).width > game.width * 0.75) {
     size = size * 0.95;
-    game.ctx.font = `bold ${size}px JetBrains Mono, monospace`;
+    game.ctx.font = `bold ${size}px ${FONTS.word}`;
   }
 
   game.ctx.fillText(game.word, game.width / 2, game.height / 10);
@@ -197,8 +256,8 @@ function word(time: DOMHighResTimeStamp, game: Game) {
 
 function controls(time: DOMHighResTimeStamp, game: Game) {
   const controlY = game.height * 0.9;
-  const controlRadius = game.height / 25;
-  game.ctx.font = `${game.height / 28}px JetBrains Mono, monospace`;
+  const controlRadius = SIZES.small(game);
+  game.ctx.font = `${SIZES.tiny(game)}px ${FONTS.controls}`;
   game.ctx.textAlign = "center";
   game.ctx.textBaseline = "middle";
 
@@ -211,19 +270,19 @@ function controls(time: DOMHighResTimeStamp, game: Game) {
   if (game.ctx.isPointInPath(game.mouseX, game.mouseY)) {
     if (game.mouseDown) {
       game.mouseDown = false;
-      game.ctx.fillStyle = "red";
+      game.ctx.fillStyle = COLORS.darkgray;
       game.word = game.word.substring(0, game.word.length - 1);
       window.requestAnimationFrame((time) => main(time, game));
     } else {
-      game.ctx.fillStyle = "green";
+      game.ctx.fillStyle = COLORS.gray;
     }
   } else {
-    game.ctx.fillStyle = "lightgray";
+    game.ctx.fillStyle = COLORS.white;
   }
-  game.ctx.lineWidth = 2;
+  game.ctx.lineWidth = 1;
   game.ctx.stroke();
   game.ctx.fill();
-  game.ctx.fillStyle = "black";
+  game.ctx.fillStyle = COLORS.black;
   game.ctx.fillText("Delete", deleteX, controlY);
 
   // Shuffle
@@ -232,19 +291,19 @@ function controls(time: DOMHighResTimeStamp, game: Game) {
   if (game.ctx.isPointInPath(game.mouseX, game.mouseY)) {
     if (game.mouseDown) {
       game.mouseDown = false;
-      game.ctx.fillStyle = "red";
+      game.ctx.fillStyle = COLORS.darkgray;
       game.letters = game.letters
         .map((letter, i) => ({ letter, sort: i === 0 ? 0 : Math.random() }))
         .sort((a, b) => a.sort - b.sort)
         .map(({ letter }) => letter);
       window.requestAnimationFrame((time) => main(time, game));
     } else {
-      game.ctx.fillStyle = "green";
+      game.ctx.fillStyle = COLORS.gray;
     }
   } else {
-    game.ctx.fillStyle = "lightgray";
+    game.ctx.fillStyle = COLORS.white;
   }
-  game.ctx.lineWidth = 2;
+  game.ctx.lineWidth = 1;
   game.ctx.stroke();
   game.ctx.fill();
 
@@ -257,19 +316,26 @@ function controls(time: DOMHighResTimeStamp, game: Game) {
   if (game.ctx.isPointInPath(game.mouseX, game.mouseY)) {
     if (game.mouseDown) {
       game.mouseDown = false;
-      game.ctx.fillStyle = "red";
-      game.word = game.word.substring(0, game.word.length - 1);
+      game.ctx.fillStyle = COLORS.darkgray;
+
+      if (game.words.has(game.word.toLowerCase())) {
+        console.log("Found word!");
+      } else {
+        console.log("no");
+      }
+      game.word = "";
+
       window.requestAnimationFrame((time) => main(time, game));
     } else {
-      game.ctx.fillStyle = "green";
+      game.ctx.fillStyle = COLORS.gray;
     }
   } else {
-    game.ctx.fillStyle = "lightgray";
+    game.ctx.fillStyle = COLORS.white;
   }
-  game.ctx.lineWidth = 2;
+  game.ctx.lineWidth = 1;
   game.ctx.stroke();
   game.ctx.fill();
-  game.ctx.fillStyle = "black";
+  game.ctx.fillStyle = COLORS.black;
   game.ctx.fillText("Enter", enterX, controlY);
 }
 

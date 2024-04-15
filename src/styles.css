@@ -1,3 +1,4 @@
+/* Disable scrolling */
 html, body {margin: 0; height: 100%; overflow: hidden}
 
 :root {
@@ -19,7 +20,7 @@ html, body {margin: 0; height: 100%; overflow: hidden}
 @media (prefers-color-scheme: dark) {
   :root {
     color: #f6f6f6;
-    background-color: #2f2f2f;
+    background-color: white;
   }
 
   a:hover {
