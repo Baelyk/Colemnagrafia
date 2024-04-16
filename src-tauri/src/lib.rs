@@ -1,7 +1,8 @@
+use rand::seq::SliceRandom;
 use rand::Rng;
 use unidecode::unidecode;
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 // Learn more about Tauri commands at https://tauri.app/v1/guides/features/command
 #[tauri::command]
@@ -24,79 +25,95 @@ const LETTERS: [char; 26] = [
 ];
 
 #[tauri::command]
-async fn new_puzzle() -> ([char; 7], Vec<String>) {
-    let all_words = std::fs::read_to_string("../0_palabras_todas_no_conjugaciones.txt")
-        .expect("Error loading words");
+async fn new_puzzle() -> (Vec<char>, HashMap<String, HashSet<String>>, Vec<String>) {
+    let all_words: Vec<String> = std::fs::read_to_string("../palabras.txt")
+        .expect("Error loading words")
+        .lines()
+        .map(|line| line.to_string())
+        .collect();
+    let all_pangrams: Vec<String> = std::fs::read_to_string("../pangrams.txt")
+        .expect("Error loading pangrams")
+        .lines()
+        .map(|line| line.to_string())
+        .collect();
 
-    let mut letters = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
-    let mut letter_set: HashSet<char> = HashSet::from_iter(letters.iter().copied());
+    let mut pangram;
+    let mut letters: Vec<char>;
 
-    let mut words = vec![];
+    let mut words: Vec<String>;
+    let mut pangrams: Vec<String>;
     let mut tries = 0;
 
     loop {
         tries += 1;
 
-        letter_set.drain();
-        loop {
-            let i = rand::thread_rng().gen_range(0..26);
+        // Choose a random pangram
+        pangram = all_pangrams
+            .choose(&mut rand::thread_rng())
+            .expect("No pangrams to choose from");
 
-            if !letter_set.contains(&LETTERS[i]) {
-                letters[letter_set.len()] = LETTERS[i];
-                letter_set.insert(LETTERS[i]);
-            }
+        // Extract the unique letters from the pangram and shuffle to pick the
+        // center letter
+        let letter_set: HashSet<char> = HashSet::from_iter(unidecode(pangram).chars());
+        letters = letter_set.iter().copied().collect();
+        letters.shuffle(&mut rand::thread_rng());
 
-            if letter_set.len() == 7 {
-                break;
-            }
-        }
-
-        println!("Trying {:?}", letter_set);
+        println!("Trying {:?} from {}", letters, pangram);
 
         words = all_words
-            .lines()
+            .iter()
             .filter(|word| {
                 let word = unidecode(word);
-                if word.chars().count() < 4 {
-                    return false;
-                }
+
                 let mut contains_center = false;
                 word.chars().all(|c| {
                     if c == letters[0] {
                         contains_center = true;
                     }
-                    letter_set.contains(&c.to_ascii_uppercase())
+                    letter_set.contains(&c)
                 })
             })
             .map(|word| word.to_owned())
             .collect();
 
-        let pangram = words.iter().any(|word| {
-            let set: HashSet<char> = HashSet::from_iter(unidecode(word).chars());
-            set.len() == 7
-        });
+        pangrams = words
+            .iter()
+            .filter(|word| {
+                let set: HashSet<char> = HashSet::from_iter(unidecode(word).chars());
+                set.len() == 7
+            })
+            .cloned()
+            .collect();
 
-        if words.len() > 0 {
+        if words.len() >= 20 {
             break;
+        } else {
+            println!("Failed, only found {} words from {}", words.len(), pangram);
         }
 
-        if pangram {
-            break;
-        }
-
-        if tries > 100 {
+        if tries > 1 {
             println!("Too many tries!");
             break;
         }
     }
 
-    //words.iter().for_each(|word| println!("{}", word));
     println!(
-        "After {} tries, found a puzzle with {} words: \n\t{:?}",
+        "After {} tries, found a puzzle with {} words and {} pangrams: \n\t{:?}",
         tries,
         words.len(),
+        pangrams.len(),
         letters
     );
 
-    return (letters, words);
+    // Now convert raw words into the deaccented word map
+    let mut word_map = HashMap::new();
+    words.into_iter().for_each(|word| {
+        let stripped = unidecode(&word);
+        word_map
+            .entry(stripped)
+            .or_insert(HashSet::new())
+            .insert(word);
+    });
+
+    return (letters, word_map, pangrams);
 }

@@ -39,7 +39,8 @@ interface Game {
 
   puzzle_promise: Promise<unknown>;
   letters: string[];
-  words: Set<string>;
+  words: { [key: string]: string[] };
+  pangrams: Set<string>;
   maxScore: number;
   word: string;
   found: string[];
@@ -67,12 +68,19 @@ window.addEventListener("DOMContentLoaded", () => {
   }
 
   game.puzzle_promise.then(message => {
-    game.letters = message[0];
-    game.words = new Set(message[1]);
-    game.maxScore = [...game.words].reduce((sum, word) => sum + scoreWord(word), 0);
+    console.debug(message);
+
+    game.letters = message[0].map(l => l.toUpperCase());
+    game.words = message[1];
+    game.pangrams = new Set(message[2]);
+    game.maxScore = Object.values(game.words).flat().reduce(
+      (sum, word) => sum + scoreWord(word, game), 0);
+
+    // For debugging, log the game
+    console.debug(game);
 
     if (DEBUG.foundAllWords) {
-      game.found = [...game.words];
+      game.found = Object.values(game.words).flat();
     }
   });
 
@@ -139,7 +147,8 @@ function init(): Game | undefined {
   }
 
   const letters: string[] = [];
-  const words: Set<string> = new Set();
+  const words = {};
+  const pangrams: Set<string> = new Set();
 
   const puzzle_promise = invoke("new_puzzle");
 
@@ -150,9 +159,10 @@ function init(): Game | undefined {
 
     puzzle_promise,
     letters,
-    word: "",
     words,
+    pangrams,
     maxScore: 0,
+    word: "",
     found: [],
     score: 0,
 
@@ -384,14 +394,19 @@ function controls(time: DOMHighResTimeStamp, game: Game) {
       game.ctx.fillStyle = COLORS.darkgray;
 
       game.word = game.word.toLowerCase();
-      if (game.words.has(game.word)) {
+      if (Object(game.words).hasOwnProperty(game.word)) {
         if (game.found.includes(game.word)) {
           game.wordMessage = "Already found";
         } else {
-          game.found.unshift(game.word);
-          const score = scoreWord(game.word);
+          let count = 0;
+          let score = 0;
+          for (const word of game.words[game.word]) {
+            game.found.unshift(word);
+            score += scoreWord(word, game);
+            count += 1;
+          }
           game.score += score;
-          game.wordMessage = `+${score}`;
+          game.wordMessage = `+${score / count} x${count}`;
         }
       } else {
         if (game.word.length < 4) {
@@ -589,12 +604,12 @@ function wordlist(time: DOMHighResTimeStamp, game: Game) {
 
 }
 
-function isPangram(word: string): boolean {
-  return false;
+function isPangram(word: string, game: Game): boolean {
+  return game.pangrams.has(word);
 }
 
-function scoreWord(word: string): number {
-  return word.length + (isPangram(word) ? 7 : 0);
+function scoreWord(word: string, game: Game): number {
+  return word.length + (isPangram(word, game) ? 7 : 0);
 }
 
 
