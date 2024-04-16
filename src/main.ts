@@ -1,5 +1,11 @@
 import { invoke } from "@tauri-apps/api/core";
 
+const DEBUG = {
+  allowAnyWord: false,
+  foundAllWords: false,
+  eventLogging: false,
+}
+
 const COLORS = {
   yellow: "gold",
   darkyellow: "goldenrod",
@@ -18,10 +24,12 @@ const FONTS = {
 }
 
 const SIZES = {
-  big: (game: Game) => game.height / 10,
-  medium: (game: Game) => game.height / 15,
-  small: (game: Game) => game.height / 28,
-  tiny: (game: Game) => game.height / 40,
+  smallestDimension: (game: Game) => Math.min(game.height, game.width),
+  big: (game: Game) => SIZES.smallestDimension(game) / 12,
+  medium: (game: Game) => SIZES.smallestDimension(game) / 20,
+  small: (game: Game) => SIZES.smallestDimension(game) / 28,
+  tiny: (game: Game) => SIZES.smallestDimension(game) / 40,
+  teeny: (game: Game) => SIZES.smallestDimension(game) / 80,
 }
 
 interface Game {
@@ -32,8 +40,10 @@ interface Game {
   puzzle_promise: Promise<unknown>;
   letters: string[];
   words: Set<string>;
+  maxScore: number;
   word: string;
-  found: Set<string>;
+  found: string[];
+  score: number;
 
   mouseX: number;
   mouseY: number;
@@ -41,6 +51,12 @@ interface Game {
 
   clickedHex: number | null;
   clickedHexTime: DOMHighResTimeStamp | null;
+
+  wordMessage: string | null;
+
+  wordlistIsOpen: boolean;
+  wordlistToggleTime: DOMHighResTimeStamp | null;
+  wordlistScroll: number;
 }
 
 window.addEventListener("DOMContentLoaded", () => {
@@ -53,21 +69,50 @@ window.addEventListener("DOMContentLoaded", () => {
   game.puzzle_promise.then(message => {
     game.letters = message[0];
     game.words = new Set(message[1]);
+    game.maxScore = [...game.words].reduce((sum, word) => sum + scoreWord(word), 0);
+
+    if (DEBUG.foundAllWords) {
+      game.found = [...game.words];
+    }
   });
 
   window.addEventListener("click", (event) => {
-    console.log("click");
+    if (DEBUG.eventLogging) console.log("click");
     game.mouseX = event.clientX;
     game.mouseY = event.clientY;
     game.mouseDown = true;
+    game.wordMessage = null;
     window.requestAnimationFrame((time) => main(time, game));
   });
 
   window.addEventListener("mousemove", (event) => {
-    console.log("mouse");
+    if (DEBUG.eventLogging) console.log("mouse");
     game.mouseX = event.clientX;
     game.mouseY = event.clientY;
     game.mouseDown = false;
+    window.requestAnimationFrame((time) => main(time, game));
+  });
+
+  window.addEventListener("resize", (event) => {
+    if (DEBUG.eventLogging) console.log("resize");
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+    game.ctx.canvas.width = width;
+    game.ctx.canvas.height = height;
+    game.width = width;
+    game.height = height;
+
+    window.requestAnimationFrame((time) => main(time, game));
+  });
+
+  window.addEventListener("wheel", (event) => {
+    if (DEBUG.eventLogging) console.log("wheel");
+    if (!game.wordlistIsOpen) {
+      return;
+    }
+
+    game.wordlistScroll += event.deltaY;
+
     window.requestAnimationFrame((time) => main(time, game));
   });
 
@@ -107,7 +152,9 @@ function init(): Game | undefined {
     letters,
     word: "",
     words,
-    found: new Set(),
+    maxScore: 0,
+    found: [],
+    score: 0,
 
     mouseX: -1,
     mouseY: -1,
@@ -115,6 +162,12 @@ function init(): Game | undefined {
 
     clickedHex: null,
     clickedHexTime: null,
+
+    wordMessage: null,
+
+    wordlistIsOpen: false,
+    wordlistToggleTime: null,
+    wordlistScroll: 0,
   };
 }
 
@@ -135,6 +188,10 @@ function main(time: DOMHighResTimeStamp, game: Game) {
   word(time, game);
 
   controls(time, game);
+
+  scorebar(time, game);
+
+  wordlist(time, game);
 }
 
 function loading(time: DOMHighResTimeStamp, game: Game) {
@@ -146,7 +203,7 @@ function loading(time: DOMHighResTimeStamp, game: Game) {
   game.ctx.textBaseline = "middle";
 
   const dots = ".".repeat((time / 250) % 4);
-  game.ctx.fillText(`Loading${dots}`, game.width / 2 - game.ctx.measureText("Loading. . .").width / 2, game.height / 2);
+  game.ctx.fillText(`Loading${dots}`, game.width / 2 - game.ctx.measureText("Loading...").width / 2, game.height / 2);
 }
 
 /**
@@ -164,7 +221,7 @@ function wheel(time: DOMHighResTimeStamp, game: Game) {
   const centerX = game.width / 2;
   const centerY = game.height - hexRadius * 4.5;
   hexagon(game.ctx, centerX, centerY, hexRadius);
-  if (game.ctx.isPointInPath(game.mouseX, game.mouseY)) {
+  if (!game.wordlistIsOpen && game.ctx.isPointInPath(game.mouseX, game.mouseY)) {
     if (game.mouseDown) {
       game.mouseDown = false;
       game.clickedHex = 0;
@@ -204,7 +261,7 @@ function wheel(time: DOMHighResTimeStamp, game: Game) {
     const x = centerX + Math.cos(radians * i + radians / 2) * radius;
     const y = centerY + Math.sin(radians * i + radians / 2) * radius;
     hexagon(game.ctx, x, y, hexRadius);
-    if (game.ctx.isPointInPath(game.mouseX, game.mouseY)) {
+    if (!game.wordlistIsOpen && game.ctx.isPointInPath(game.mouseX, game.mouseY)) {
       if (game.mouseDown) {
         game.mouseDown = false;
         game.clickedHex = i;
@@ -246,16 +303,24 @@ function word(time: DOMHighResTimeStamp, game: Game) {
   game.ctx.font = `bold ${size}px ${FONTS.word}`;
   game.ctx.textAlign = "center";
   game.ctx.textBaseline = "middle";
+  game.ctx.fillStyle = COLORS.black;
   while (game.ctx.measureText(game.word).width > game.width * 0.75) {
     size = size * 0.95;
     game.ctx.font = `bold ${size}px ${FONTS.word}`;
   }
 
-  game.ctx.fillText(game.word, game.width / 2, game.height / 10);
+  const wordY = game.height - SIZES.big(game) * 8;
+
+  let text = game.word;
+  if (game.wordMessage != null) {
+    text = game.wordMessage;
+    game.ctx.fillStyle = COLORS.darkgray;
+  }
+  game.ctx.fillText(text, game.width / 2, wordY);
 }
 
 function controls(time: DOMHighResTimeStamp, game: Game) {
-  const controlY = game.height * 0.9;
+  const controlY = game.height - SIZES.big(game);
   const controlRadius = SIZES.small(game);
   game.ctx.font = `${SIZES.tiny(game)}px ${FONTS.controls}`;
   game.ctx.textAlign = "center";
@@ -267,7 +332,7 @@ function controls(time: DOMHighResTimeStamp, game: Game) {
   game.ctx.arc(deleteX - controlRadius, controlY, controlRadius, Math.PI / 2, Math.PI * 3 / 2)
   game.ctx.arc(deleteX + controlRadius, controlY, controlRadius, Math.PI * 3 / 2, Math.PI / 2)
   game.ctx.closePath();
-  if (game.ctx.isPointInPath(game.mouseX, game.mouseY)) {
+  if (!game.wordlistIsOpen && game.ctx.isPointInPath(game.mouseX, game.mouseY)) {
     if (game.mouseDown) {
       game.mouseDown = false;
       game.ctx.fillStyle = COLORS.darkgray;
@@ -288,7 +353,7 @@ function controls(time: DOMHighResTimeStamp, game: Game) {
   // Shuffle
   game.ctx.beginPath();
   game.ctx.arc(game.width / 2, controlY, controlRadius, 0, 2 * Math.PI)
-  if (game.ctx.isPointInPath(game.mouseX, game.mouseY)) {
+  if (!game.wordlistIsOpen && game.ctx.isPointInPath(game.mouseX, game.mouseY)) {
     if (game.mouseDown) {
       game.mouseDown = false;
       game.ctx.fillStyle = COLORS.darkgray;
@@ -313,15 +378,31 @@ function controls(time: DOMHighResTimeStamp, game: Game) {
   game.ctx.arc(enterX - controlRadius, controlY, controlRadius, Math.PI / 2, Math.PI * 3 / 2)
   game.ctx.arc(enterX + controlRadius, controlY, controlRadius, Math.PI * 3 / 2, Math.PI / 2)
   game.ctx.closePath();
-  if (game.ctx.isPointInPath(game.mouseX, game.mouseY)) {
+  if (!game.wordlistIsOpen && game.ctx.isPointInPath(game.mouseX, game.mouseY)) {
     if (game.mouseDown) {
       game.mouseDown = false;
       game.ctx.fillStyle = COLORS.darkgray;
 
-      if (game.words.has(game.word.toLowerCase())) {
-        console.log("Found word!");
+      game.word = game.word.toLowerCase();
+      if (game.words.has(game.word)) {
+        if (game.found.includes(game.word)) {
+          game.wordMessage = "Already found";
+        } else {
+          game.found.unshift(game.word);
+          const score = scoreWord(game.word);
+          game.score += score;
+          game.wordMessage = `+${score}`;
+        }
       } else {
-        console.log("no");
+        if (game.word.length < 4) {
+          game.wordMessage = "Too short";
+        } else {
+          game.wordMessage = "Not a word";
+        }
+
+        if (DEBUG.allowAnyWord) {
+          game.found.unshift(game.word);
+        }
       }
       game.word = "";
 
@@ -338,6 +419,184 @@ function controls(time: DOMHighResTimeStamp, game: Game) {
   game.ctx.fillStyle = COLORS.black;
   game.ctx.fillText("Enter", enterX, controlY);
 }
+
+const SCORERANKS: [number, string][] = [
+  [0, "Beginner"],
+  [0.02, "Good Start"],
+  [0.05, "Moving Up"],
+  [0.08, "Good"],
+  [0.15, "Solid"],
+  [0.25, "Nice"],
+  [0.40, "Great"],
+  [0.50, "Amazing"],
+  [0.70, "Genius"],
+  [1, "Queen Bee"]
+];
+
+function scorebar(time: DOMHighResTimeStamp, game: Game) {
+  const rank = SCORERANKS.findIndex(
+    ([minScore, _]) => game.score < Math.round(minScore * game.maxScore)) - 1;
+
+  const scorebarWidth = game.width * 0.8;
+  const scorebarHeight = game.height / 20;
+  const scorebarX = game.width / 2 - scorebarWidth / 2;
+  const scorebarY = game.height / 10;
+  const rankWidth = SIZES.small(game)
+    + Math.max(...SCORERANKS.map((([_, rank]) => game.ctx.measureText(rank).width)));
+
+  // Rank
+  game.ctx.font = `bold ${SIZES.tiny(game)}px ${FONTS.word}`;
+  game.ctx.textAlign = "left";
+  game.ctx.textBaseline = "middle";
+
+  game.ctx.fillStyle = COLORS.black;
+  game.ctx.fillText(SCORERANKS[rank][1], scorebarX, scorebarY);
+
+  // Score bar
+  game.ctx.beginPath();
+  game.ctx.moveTo(scorebarX + rankWidth, scorebarY);
+  game.ctx.lineTo(scorebarX + scorebarWidth, scorebarY);
+  game.ctx.strokeStyle = COLORS.gray;
+  game.ctx.stroke();
+  // Score ticks
+  game.ctx.textAlign = "left";
+  game.ctx.textBaseline = "middle";
+  const tickWidth = (scorebarWidth - rankWidth - 2 * SIZES.teeny(game)) / (SCORERANKS.length - 1);
+  for (let i = 0; i < SCORERANKS.length; i++) {
+    const tickX = scorebarX + rankWidth + SIZES.teeny(game) + i * tickWidth;
+
+    let tickRadius = SIZES.teeny(game);
+    if (i === rank) {
+      tickRadius = SIZES.tiny(game);
+    }
+    // Temporary extra large tick mark to check for interaction
+    game.ctx.beginPath();
+    game.ctx.arc(tickX, scorebarY, SIZES.small(game), 0, 2 * Math.PI);
+    let interactingWithTick = false;
+    if (game.ctx.isPointInPath(game.mouseX, game.mouseY)) {
+      interactingWithTick = true;
+      // Increase radius of tick when interacting
+      tickRadius = SIZES.tiny(game);
+    }
+
+    if (i <= rank) {
+      game.ctx.fillStyle = COLORS.yellow;
+    } else {
+      game.ctx.fillStyle = COLORS.gray;
+    }
+
+    game.ctx.beginPath();
+    game.ctx.arc(tickX, scorebarY, tickRadius, 0, 2 * Math.PI);
+    game.ctx.fill();
+
+    game.ctx.textAlign = "center";
+    game.ctx.fillStyle = COLORS.black;
+    if (interactingWithTick) {
+      // Display min score for rank if interacting
+      game.ctx.font = `${SIZES.tiny(game)}px ${FONTS.word}`;
+      game.ctx.fillText(Math.round(game.maxScore * SCORERANKS[i][0]).toString(), tickX, scorebarY);
+    } else if (i === rank) {
+      // Display current score if this is the current rank
+      game.ctx.font = `bold ${SIZES.tiny(game)}px ${FONTS.word}`;
+      game.ctx.fillText(game.score.toString(), tickX, scorebarY);
+    }
+  }
+}
+
+function wordlist(time: DOMHighResTimeStamp, game: Game) {
+  const wordlistWidth = game.width * 0.8;
+  const wordlistHeight = game.wordlistIsOpen ? game.height * 0.7 : game.height / 20;
+  const wordlistX = game.width / 2 - wordlistWidth / 2;
+  const wordlistY = 2 * game.height / 10;
+
+  game.ctx.beginPath();
+  game.ctx.rect(wordlistX, wordlistY, wordlistWidth, wordlistHeight);
+  game.ctx.strokeStyle = COLORS.black;
+  game.ctx.fillStyle = COLORS.white;
+  game.ctx.fill();
+  game.ctx.stroke();
+
+  // Toggle the wordlist being open when you click on it
+  if (game.mouseDown && game.ctx.isPointInPath(game.mouseX, game.mouseY)) {
+    game.mouseDown = false;
+    game.wordlistIsOpen = !game.wordlistIsOpen;
+    game.wordlistToggleTime = time;
+    window.requestAnimationFrame((time) => main(time, game));
+  }
+
+  game.ctx.font = `${SIZES.tiny(game)}px ${FONTS.word}`;
+  game.ctx.textAlign = "left";
+  game.ctx.textBaseline = "middle";
+
+  // Opened wordlist
+  if (game.wordlistIsOpen) {
+    // Clip to only display text inside the wordlist
+    game.ctx.save();
+    game.ctx.clip();
+
+    const textHeight = game.ctx.measureText("A").fontBoundingBoxAscent
+      + game.ctx.measureText("A").fontBoundingBoxDescent;
+
+    // Restrict scrolling
+    const rows = Math.ceil(game.found.length / 2) + 1;
+    // No need to scroll up
+    game.wordlistScroll = Math.min(Math.max(0, game.wordlistScroll),
+      // No need to bring the end of the list above the bottom
+      Math.max(0, (rows + 1) * textHeight - wordlistHeight));
+
+    game.ctx.fillStyle = COLORS.black;
+
+    const textY = wordlistY + textHeight - game.wordlistScroll;
+    const leftX = wordlistX + wordlistWidth / 20;
+    const rightX = wordlistX + wordlistWidth / 2 + wordlistWidth / 20;
+    let count = 0;
+    const alphabetical = [...game.found].sort();
+    game.ctx.fillText(`${game.found.length} word${count === 1 ? "" : "s"} found`, leftX, textY);
+
+    for (const word of alphabetical) {
+      if (count % 2 === 0) {
+        game.ctx.fillText(word, leftX, textY + textHeight * (Math.floor(count / 2) + 1));
+      } else {
+        game.ctx.fillText(word, rightX, textY + textHeight * (Math.floor(count / 2) + 1));
+      }
+      count++;
+    }
+
+    game.ctx.beginPath();
+    game.ctx.moveTo(game.width / 2, wordlistY + textHeight / 2);
+    game.ctx.lineTo(game.width / 2, wordlistY + wordlistHeight - textHeight / 2);
+    game.ctx.strokeStyle = COLORS.gray;
+    game.ctx.stroke();
+
+    // Restore previous clipping
+    game.ctx.restore();
+  }
+
+  // Wordlist preview
+  if (!game.wordlistIsOpen) {
+    let preview = "";
+    for (const word of game.found) {
+      const nextPreview = `${preview}${word} `;
+      if (game.ctx.measureText(nextPreview).width > wordlistWidth * 0.9) {
+        break;
+      }
+
+      preview = nextPreview;
+    }
+    game.ctx.fillStyle = COLORS.black;
+    game.ctx.fillText(preview, wordlistX + wordlistWidth / 20, wordlistY + wordlistHeight / 2);
+  }
+
+}
+
+function isPangram(word: string): boolean {
+  return false;
+}
+
+function scoreWord(word: string): number {
+  return word.length + (isPangram(word) ? 7 : 0);
+}
+
 
 /**
  * Path a hexagon centered at x, y with specified radius. Rotated to have a side
