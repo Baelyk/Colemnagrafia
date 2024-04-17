@@ -2,7 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 
 const DEBUG = {
   allowAnyWord: false,
-  foundAllWords: false,
+  foundAllWords: true,
   eventLogging: false,
 }
 
@@ -25,7 +25,7 @@ const FONTS = {
 
 const SIZES = {
   smallestDimension: (game: Game) => Math.min(game.height, game.width),
-  big: (game: Game) => SIZES.smallestDimension(game) / 12,
+  big: (game: Game) => SIZES.smallestDimension(game) / 10,
   medium: (game: Game) => SIZES.smallestDimension(game) / 20,
   small: (game: Game) => SIZES.smallestDimension(game) / 28,
   tiny: (game: Game) => SIZES.smallestDimension(game) / 40,
@@ -36,6 +36,8 @@ interface Game {
   width: number;
   height: number;
   ctx: CanvasRenderingContext2D;
+
+  errorText: string | null;
 
   puzzle_promise: Promise<unknown>;
   letters: string[];
@@ -82,6 +84,10 @@ window.addEventListener("DOMContentLoaded", () => {
     if (DEBUG.foundAllWords) {
       game.found = Object.values(game.words).flat();
     }
+  }).catch(message => {
+    console.error("Puzzle generation failed");
+    console.debug(message);
+    game.errorText = JSON.stringify(message);
   });
 
   window.addEventListener("click", (event) => {
@@ -121,6 +127,17 @@ window.addEventListener("DOMContentLoaded", () => {
 
     game.wordlistScroll += event.deltaY;
 
+    window.requestAnimationFrame((time) => main(time, game));
+  });
+
+  window.addEventListener("pointermove", (event) => {
+    if (DEBUG.eventLogging) console.log("pointermove");
+    console.debug(event);
+    if (!game.wordlistIsOpen) {
+      return;
+    }
+
+    game.wordlistScroll -= event.movementY;
     window.requestAnimationFrame((time) => main(time, game));
   });
 
@@ -184,6 +201,11 @@ function init(): Game | undefined {
 function main(time: DOMHighResTimeStamp, game: Game) {
   game.ctx.clearRect(0, 0, game.width, game.height);
 
+  if (game.errorText != null) {
+    error(time, game);
+    return;
+  }
+
   if (game.letters.length === 0) {
     loading(time, game);
     return;
@@ -202,6 +224,19 @@ function main(time: DOMHighResTimeStamp, game: Game) {
   scorebar(time, game);
 
   wordlist(time, game);
+}
+
+function error(time: DOMHighResTimeStamp, game: Game) {
+  console.log("Error");
+
+  game.ctx.font = `bold ${SIZES.big(game)}px ${FONTS.loading}`;
+  game.ctx.textAlign = "left";
+  game.ctx.textBaseline = "middle";
+  game.ctx.fillStyle = COLORS.black;
+
+  game.ctx.fillText("Error", SIZES.small(game), SIZES.small(game));
+  game.ctx.font = `${SIZES.small(game)}px ${FONTS.loading}`;
+  game.ctx.fillText(game.errorText || "Unknown error", SIZES.small(game), 2 * SIZES.small(game) + SIZES.big(game));
 }
 
 function loading(time: DOMHighResTimeStamp, game: Game) {
@@ -394,7 +429,7 @@ function controls(time: DOMHighResTimeStamp, game: Game) {
       game.ctx.fillStyle = COLORS.darkgray;
 
       game.word = game.word.toLowerCase();
-      if (Object(game.words).hasOwnProperty(game.word)) {
+      if (Object.hasOwn(game.words, game.word)) {
         if (game.found.includes(game.word)) {
           game.wordMessage = "Already found";
         } else {
@@ -406,7 +441,7 @@ function controls(time: DOMHighResTimeStamp, game: Game) {
             count += 1;
           }
           game.score += score;
-          game.wordMessage = `+${score / count} x${count}`;
+          game.wordMessage = `+${score / count}${count > 1 ? ` x${count}` : ""}`;
         }
       } else {
         if (game.word.length < 4) {
@@ -459,22 +494,14 @@ function scorebar(time: DOMHighResTimeStamp, game: Game) {
   const rankWidth = SIZES.small(game)
     + Math.max(...SCORERANKS.map((([_, rank]) => game.ctx.measureText(rank).width)));
 
-  // Rank
-  game.ctx.font = `bold ${SIZES.tiny(game)}px ${FONTS.word}`;
-  game.ctx.textAlign = "left";
-  game.ctx.textBaseline = "middle";
-
-  game.ctx.fillStyle = COLORS.black;
-  game.ctx.fillText(SCORERANKS[rank][1], scorebarX, scorebarY);
-
   // Score bar
+  let displayRank = SCORERANKS[rank][1];
   game.ctx.beginPath();
   game.ctx.moveTo(scorebarX + rankWidth, scorebarY);
   game.ctx.lineTo(scorebarX + scorebarWidth, scorebarY);
   game.ctx.strokeStyle = COLORS.gray;
   game.ctx.stroke();
   // Score ticks
-  game.ctx.textAlign = "left";
   game.ctx.textBaseline = "middle";
   const tickWidth = (scorebarWidth - rankWidth - 2 * SIZES.teeny(game)) / (SCORERANKS.length - 1);
   for (let i = 0; i < SCORERANKS.length; i++) {
@@ -510,12 +537,21 @@ function scorebar(time: DOMHighResTimeStamp, game: Game) {
       // Display min score for rank if interacting
       game.ctx.font = `${SIZES.tiny(game)}px ${FONTS.word}`;
       game.ctx.fillText(Math.round(game.maxScore * SCORERANKS[i][0]).toString(), tickX, scorebarY);
+      // Change rank to this tick's rank while interacting
+      displayRank = SCORERANKS[i][1];
     } else if (i === rank) {
       // Display current score if this is the current rank
       game.ctx.font = `bold ${SIZES.tiny(game)}px ${FONTS.word}`;
       game.ctx.fillText(game.score.toString(), tickX, scorebarY);
     }
   }
+
+  // Rank
+  game.ctx.font = `bold ${SIZES.tiny(game)}px ${FONTS.word}`;
+  game.ctx.textAlign = "left";
+  game.ctx.textBaseline = "middle";
+  game.ctx.fillStyle = COLORS.black;
+  game.ctx.fillText(displayRank, scorebarX, scorebarY);
 }
 
 function wordlist(time: DOMHighResTimeStamp, game: Game) {

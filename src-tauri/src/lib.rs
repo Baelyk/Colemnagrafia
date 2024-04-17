@@ -1,8 +1,10 @@
 use rand::seq::SliceRandom;
-use rand::Rng;
+use tauri::Manager;
 use unidecode::unidecode;
 
 use std::collections::{HashMap, HashSet};
+
+mod palabras;
 
 // Learn more about Tauri commands at https://tauri.app/v1/guides/features/command
 #[tauri::command]
@@ -19,23 +21,29 @@ pub fn run() {
         .expect("error while running tauri application");
 }
 
-const LETTERS: [char; 26] = [
-    'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S',
-    'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
-];
+#[derive(Debug, thiserror::Error)]
+enum Error {
+    #[error(transparent)]
+    Tauri(#[from] tauri::Error),
+    #[error(transparent)]
+    Io(#[from] std::io::Error),
+    #[error("{0}")]
+    Message(String),
+}
+
+impl serde::Serialize for Error {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::ser::Serializer,
+    {
+        serializer.serialize_str(self.to_string().as_ref())
+    }
+}
 
 #[tauri::command]
-async fn new_puzzle() -> (Vec<char>, HashMap<String, HashSet<String>>, Vec<String>) {
-    let all_words: Vec<String> = std::fs::read_to_string("../palabras.txt")
-        .expect("Error loading words")
-        .lines()
-        .map(|line| line.to_string())
-        .collect();
-    let all_pangrams: Vec<String> = std::fs::read_to_string("../pangrams.txt")
-        .expect("Error loading pangrams")
-        .lines()
-        .map(|line| line.to_string())
-        .collect();
+async fn new_puzzle() -> Result<(Vec<char>, HashMap<String, HashSet<String>>, Vec<String>), Error> {
+    let all_words = palabras::PALABRAS;
+    let all_pangrams = palabras::PANGRAMS;
 
     let mut pangram;
     let mut letters: Vec<char>;
@@ -48,9 +56,10 @@ async fn new_puzzle() -> (Vec<char>, HashMap<String, HashSet<String>>, Vec<Strin
         tries += 1;
 
         // Choose a random pangram
-        pangram = all_pangrams
-            .choose(&mut rand::thread_rng())
-            .expect("No pangrams to choose from");
+        let Some(chosen_pangram) = all_pangrams.choose(&mut rand::thread_rng()) else {
+            return Err(Error::Message("No pangrams to choose from".into()));
+        };
+        pangram = chosen_pangram;
 
         // Extract the unique letters from the pangram and shuffle to pick the
         // center letter
@@ -71,9 +80,9 @@ async fn new_puzzle() -> (Vec<char>, HashMap<String, HashSet<String>>, Vec<Strin
                         contains_center = true;
                     }
                     letter_set.contains(&c)
-                })
+                }) && contains_center
             })
-            .map(|word| word.to_owned())
+            .map(|word| word.to_string())
             .collect();
 
         pangrams = words
@@ -115,5 +124,5 @@ async fn new_puzzle() -> (Vec<char>, HashMap<String, HashSet<String>>, Vec<Strin
             .insert(word);
     });
 
-    return (letters, word_map, pangrams);
+    Ok((letters, word_map, pangrams))
 }

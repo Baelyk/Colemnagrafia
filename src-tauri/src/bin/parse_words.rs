@@ -1,7 +1,6 @@
 use std::{
     collections::HashSet,
-    fs::{self, File},
-    io,
+    fs::{self},
 };
 use unidecode::unidecode;
 
@@ -76,10 +75,24 @@ fn main() {
         println!("\t{}", word);
     });
 
-    println!("Writing palabras.txt and pangrams.txt");
+    println!("Writing palabras.rs...");
 
-    fs::write("../palabras.txt", words.join("\n")).expect("Unable to write palabras.txt");
-    fs::write("../pangrams.txt", pangrams.join("\n")).expect("Unable to write pangrams.txt");
+    let mut palabras_rs = format!("pub const PALABRAS: [&'static str; {}] = [\n", words.len());
+    words
+        .iter()
+        .for_each(|word| palabras_rs.push_str(&format!("\t\"{}\",\n", word)));
+    palabras_rs.push_str("];\n\n");
+
+    palabras_rs.push_str(&format!(
+        "pub const PANGRAMS: [&'static str; {}] = [",
+        pangrams.len()
+    ));
+    pangrams
+        .iter()
+        .for_each(|word| palabras_rs.push_str(&format!("\t\"{}\",\n", word)));
+    palabras_rs.push_str("];\n\n");
+
+    fs::write("palabras.rs", palabras_rs).expect("Unable to write palabras.rs");
 }
 
 fn count_unique_chars(word: &str) -> usize {
