@@ -2,7 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 
 const DEBUG = {
   allowAnyWord: false,
-  foundAllWords: true,
+  foundAllWords: false,
   eventLogging: false,
 }
 
@@ -17,20 +17,21 @@ const COLORS = {
 };
 
 const FONTS = {
-  controls: "JetBrains Mono, monospace",
-  loading: "Arial",
-  wheel: "JetBrains Mono, monospace",
+  default: "sans-serif",
   word: "JetBrains Mono, monospace",
 }
 
 const SIZES = {
   smallestDimension: (game: Game) => Math.min(game.height, game.width),
-  big: (game: Game) => SIZES.smallestDimension(game) / 10,
-  medium: (game: Game) => SIZES.smallestDimension(game) / 20,
-  small: (game: Game) => SIZES.smallestDimension(game) / 28,
-  tiny: (game: Game) => SIZES.smallestDimension(game) / 40,
-  teeny: (game: Game) => SIZES.smallestDimension(game) / 80,
+  big: (game: Game) => SIZES.smallestDimension(game) / 7,
+  medium: (game: Game) => SIZES.smallestDimension(game) / 10,
+  small: (game: Game) => SIZES.smallestDimension(game) / 15,
+  tiny: (game: Game) => SIZES.smallestDimension(game) / 25,
+  teeny: (game: Game) => SIZES.smallestDimension(game) / 90,
 }
+
+type WordMap = { [key: string]: string[] };
+
 
 interface Game {
   width: number;
@@ -41,7 +42,7 @@ interface Game {
 
   puzzle_promise: Promise<unknown>;
   letters: string[];
-  words: { [key: string]: string[] };
+  words: WordMap;
   pangrams: Set<string>;
   maxScore: number;
   word: string;
@@ -62,6 +63,8 @@ interface Game {
   wordlistScroll: number;
 }
 
+type NewPuzzleResponse = [string[], WordMap, string[]];
+
 window.addEventListener("DOMContentLoaded", () => {
   const game = init();
   if (game == null) {
@@ -69,7 +72,9 @@ window.addEventListener("DOMContentLoaded", () => {
     return;
   }
 
-  game.puzzle_promise.then(message => {
+  game.puzzle_promise.then(msg => {
+    const message = msg as NewPuzzleResponse;
+
     console.debug(message);
 
     game.letters = message[0].map(l => l.toUpperCase());
@@ -107,7 +112,7 @@ window.addEventListener("DOMContentLoaded", () => {
     window.requestAnimationFrame((time) => main(time, game));
   });
 
-  window.addEventListener("resize", (event) => {
+  window.addEventListener("resize", () => {
     if (DEBUG.eventLogging) console.log("resize");
     const width = window.innerWidth;
     const height = window.innerHeight;
@@ -174,6 +179,8 @@ function init(): Game | undefined {
     height,
     ctx,
 
+    errorText: null,
+
     puzzle_promise,
     letters,
     words,
@@ -226,16 +233,16 @@ function main(time: DOMHighResTimeStamp, game: Game) {
   wordlist(time, game);
 }
 
-function error(time: DOMHighResTimeStamp, game: Game) {
+function error(_time: DOMHighResTimeStamp, game: Game) {
   console.log("Error");
 
-  game.ctx.font = `bold ${SIZES.big(game)}px ${FONTS.loading}`;
+  game.ctx.font = `bold ${SIZES.big(game)}px ${FONTS.default}`;
   game.ctx.textAlign = "left";
   game.ctx.textBaseline = "middle";
   game.ctx.fillStyle = COLORS.black;
 
   game.ctx.fillText("Error", SIZES.small(game), SIZES.small(game));
-  game.ctx.font = `${SIZES.small(game)}px ${FONTS.loading}`;
+  game.ctx.font = `${SIZES.small(game)}px ${FONTS.default}`;
   game.ctx.fillText(game.errorText || "Unknown error", SIZES.small(game), 2 * SIZES.small(game) + SIZES.big(game));
 }
 
@@ -243,7 +250,7 @@ function loading(time: DOMHighResTimeStamp, game: Game) {
   console.log("Loading...");
   window.requestAnimationFrame((time) => main(time, game));
 
-  game.ctx.font = `bold ${SIZES.big(game)}px ${FONTS.loading}`;
+  game.ctx.font = `bold ${SIZES.big(game)}px ${FONTS.default}`;
   game.ctx.textAlign = "left";
   game.ctx.textBaseline = "middle";
 
@@ -258,7 +265,7 @@ function wheel(time: DOMHighResTimeStamp, game: Game) {
   let clicked = "";
   const hexRadius = SIZES.big(game);
 
-  game.ctx.font = `bold ${hexRadius}px ${FONTS.wheel}`
+  game.ctx.font = `bold ${hexRadius}px ${FONTS.word}`
   game.ctx.textAlign = "center";
   game.ctx.textBaseline = "middle";
 
@@ -343,7 +350,7 @@ function wheel(time: DOMHighResTimeStamp, game: Game) {
   return clicked;
 }
 
-function word(time: DOMHighResTimeStamp, game: Game) {
+function word(_time: DOMHighResTimeStamp, game: Game) {
   let size = SIZES.medium(game);
   game.ctx.font = `bold ${size}px ${FONTS.word}`;
   game.ctx.textAlign = "center";
@@ -364,10 +371,10 @@ function word(time: DOMHighResTimeStamp, game: Game) {
   game.ctx.fillText(text, game.width / 2, wordY);
 }
 
-function controls(time: DOMHighResTimeStamp, game: Game) {
+function controls(_time: DOMHighResTimeStamp, game: Game) {
   const controlY = game.height - SIZES.big(game);
   const controlRadius = SIZES.small(game);
-  game.ctx.font = `${SIZES.tiny(game)}px ${FONTS.controls}`;
+  game.ctx.font = `${SIZES.tiny(game)}px ${FONTS.default}`;
   game.ctx.textAlign = "center";
   game.ctx.textBaseline = "middle";
 
@@ -443,6 +450,11 @@ function controls(time: DOMHighResTimeStamp, game: Game) {
           game.score += score;
           game.wordMessage = `+${score / count}${count > 1 ? ` x${count}` : ""}`;
         }
+      } else if (DEBUG.allowAnyWord) {
+        game.found.unshift(game.word);
+        const score = scoreWord(game.word, game);
+        game.score += score;
+        game.wordMessage = `+${score} !`;
       } else {
         if (game.word.length < 4) {
           game.wordMessage = "Too short";
@@ -483,15 +495,15 @@ const SCORERANKS: [number, string][] = [
   [1, "Queen Bee"]
 ];
 
-function scorebar(time: DOMHighResTimeStamp, game: Game) {
+function scorebar(_time: DOMHighResTimeStamp, game: Game) {
   const rank = SCORERANKS.findIndex(
     ([minScore, _]) => game.score < Math.round(minScore * game.maxScore)) - 1;
 
   const scorebarWidth = game.width * 0.8;
-  const scorebarHeight = game.height / 20;
   const scorebarX = game.width / 2 - scorebarWidth / 2;
   const scorebarY = game.height / 10;
-  const rankWidth = SIZES.small(game)
+  game.ctx.font = `bold ${SIZES.tiny(game)}px ${FONTS.default}`;
+  const rankWidth = SIZES.tiny(game)
     + Math.max(...SCORERANKS.map((([_, rank]) => game.ctx.measureText(rank).width)));
 
   // Score bar
@@ -504,6 +516,10 @@ function scorebar(time: DOMHighResTimeStamp, game: Game) {
   // Score ticks
   game.ctx.textBaseline = "middle";
   const tickWidth = (scorebarWidth - rankWidth - 2 * SIZES.teeny(game)) / (SCORERANKS.length - 1);
+  // Only allow interacting with one tick at a time by defaulting to undefined
+  // and only allow interaction when undefined. At the end of the loop of the
+  // interacted with tick, set to false to disable further interaction.
+  let interactingWithTick = undefined;
   for (let i = 0; i < SCORERANKS.length; i++) {
     const tickX = scorebarX + rankWidth + SIZES.teeny(game) + i * tickWidth;
 
@@ -513,9 +529,8 @@ function scorebar(time: DOMHighResTimeStamp, game: Game) {
     }
     // Temporary extra large tick mark to check for interaction
     game.ctx.beginPath();
-    game.ctx.arc(tickX, scorebarY, SIZES.small(game), 0, 2 * Math.PI);
-    let interactingWithTick = false;
-    if (game.ctx.isPointInPath(game.mouseX, game.mouseY)) {
+    game.ctx.arc(tickX, scorebarY, SIZES.tiny(game), 0, 2 * Math.PI);
+    if (interactingWithTick === undefined && game.ctx.isPointInPath(game.mouseX, game.mouseY)) {
       interactingWithTick = true;
       // Increase radius of tick when interacting
       tickRadius = SIZES.tiny(game);
@@ -544,10 +559,14 @@ function scorebar(time: DOMHighResTimeStamp, game: Game) {
       game.ctx.font = `bold ${SIZES.tiny(game)}px ${FONTS.word}`;
       game.ctx.fillText(game.score.toString(), tickX, scorebarY);
     }
+
+    if (interactingWithTick) {
+      interactingWithTick = false;
+    }
   }
 
   // Rank
-  game.ctx.font = `bold ${SIZES.tiny(game)}px ${FONTS.word}`;
+  game.ctx.font = `bold ${SIZES.tiny(game)}px ${FONTS.default}`;
   game.ctx.textAlign = "left";
   game.ctx.textBaseline = "middle";
   game.ctx.fillStyle = COLORS.black;
@@ -575,7 +594,7 @@ function wordlist(time: DOMHighResTimeStamp, game: Game) {
     window.requestAnimationFrame((time) => main(time, game));
   }
 
-  game.ctx.font = `${SIZES.tiny(game)}px ${FONTS.word}`;
+  game.ctx.font = `${SIZES.tiny(game)}px ${FONTS.default}`;
   game.ctx.textAlign = "left";
   game.ctx.textBaseline = "middle";
 
@@ -655,21 +674,6 @@ function scoreWord(word: string, game: Game): number {
  */
 function hexagon(ctx: CanvasRenderingContext2D, x: number, y: number, radius: number) {
   const sides = 6;
-  const radians = 2 * Math.PI / sides;
-
-  ctx.beginPath();
-  ctx.moveTo(x + radius, y);
-  for (let i = 1; i <= sides; i++) {
-    ctx.lineTo(x + Math.cos(radians * i) * radius, y + Math.sin(radians * i) * radius);
-  }
-}
-
-/**
- * Path a triangle centered at x, y with specified radius. Rotated to have one
- * vertex to the right. Does not draw!
- */
-function triangle(ctx: CanvasRenderingContext2D, x: number, y: number, radius: number) {
-  const sides = 3;
   const radians = 2 * Math.PI / sides;
 
   ctx.beginPath();
