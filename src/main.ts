@@ -36,6 +36,7 @@ type WordMap = { [key: string]: string[] };
 interface Game {
   width: number;
   height: number;
+  scaling: number;
   ctx: CanvasRenderingContext2D;
 
   errorText: string | null;
@@ -61,6 +62,9 @@ interface Game {
   wordlistIsOpen: boolean;
   wordlistToggleTime: DOMHighResTimeStamp | null;
   wordlistScroll: number;
+  wordlistScrollSpeed: number;
+  /** Whether the user is currently scrolling (i.e. finger moving the list) */
+  wordlistUserIsScrolling: boolean;
 }
 
 type NewPuzzleResponse = [string[], WordMap, string[]];
@@ -97,8 +101,8 @@ window.addEventListener("DOMContentLoaded", () => {
 
   window.addEventListener("click", (event) => {
     if (DEBUG.eventLogging) console.log("click");
-    game.mouseX = event.clientX;
-    game.mouseY = event.clientY;
+    game.mouseX = event.clientX * game.scaling;
+    game.mouseY = event.clientY * game.scaling;
     game.mouseDown = true;
     game.wordMessage = null;
     window.requestAnimationFrame((time) => main(time, game));
@@ -106,20 +110,18 @@ window.addEventListener("DOMContentLoaded", () => {
 
   window.addEventListener("mousemove", (event) => {
     if (DEBUG.eventLogging) console.log("mouse");
-    game.mouseX = event.clientX;
-    game.mouseY = event.clientY;
+    game.mouseX = event.clientX * game.scaling;
+    game.mouseY = event.clientY * game.scaling;
     game.mouseDown = false;
     window.requestAnimationFrame((time) => main(time, game));
   });
 
   window.addEventListener("resize", () => {
     if (DEBUG.eventLogging) console.log("resize");
-    const width = window.innerWidth;
-    const height = window.innerHeight;
-    game.ctx.canvas.width = width;
-    game.ctx.canvas.height = height;
-    game.width = width;
-    game.height = height;
+    game.width = window.innerWidth;
+    game.height = window.innerHeight;
+    game.scaling = window.devicePixelRatio;
+    resizeCanvas(game.ctx.canvas, game.width, game.height);
 
     window.requestAnimationFrame((time) => main(time, game));
   });
@@ -143,11 +145,41 @@ window.addEventListener("DOMContentLoaded", () => {
     }
 
     game.wordlistScroll -= event.movementY;
+    game.wordlistScrollSpeed = event.movementY;
+    game.wordlistUserIsScrolling = true;
+
+    window.requestAnimationFrame((time) => main(time, game));
+  });
+
+  window.addEventListener("pointerup", (event) => {
+    if (DEBUG.eventLogging) console.log("pointerup");
+    console.debug(event);
+    if (!game.wordlistIsOpen) {
+      return;
+    }
+
+    game.wordlistUserIsScrolling = false;
+
     window.requestAnimationFrame((time) => main(time, game));
   });
 
   window.requestAnimationFrame((time) => main(time, game));
 });
+
+function resizeCanvas(canvas: HTMLCanvasElement, width: number, height: number) {
+  const ratio = window.devicePixelRatio;
+  canvas.style.width = `${width}px`;
+  canvas.style.height = `${height}px`;
+  canvas.width = width * ratio;
+  canvas.height = height * ratio;
+
+  const ctx = canvas.getContext("2d");
+  if (ctx == null) {
+    console.error("Unable to get canvas context");
+    return;
+  }
+  ctx.scale(ratio, ratio);
+}
 
 function init(): Game | undefined {
   console.log("Initializing...");
@@ -156,35 +188,31 @@ function init(): Game | undefined {
     console.error("Unable to get canvas");
     return;
   }
-
-  const width = window.innerWidth;
-  const height = window.innerHeight;
-  canvas.width = width;
-  canvas.height = height;
-
   const ctx = canvas.getContext("2d");
   if (ctx == null) {
     console.error("Unable to get canvas context");
     return;
   }
 
-  const letters: string[] = [];
-  const words = {};
-  const pangrams: Set<string> = new Set();
+  const scaling = window.devicePixelRatio;
+  const width = window.innerWidth;
+  const height = window.innerHeight;
+  resizeCanvas(canvas, width, height);
 
-  const puzzle_promise = invoke("new_puzzle");
+  const puzzle_promise = invoke("daily_puzzle");
 
   return {
     width,
     height,
+    scaling,
     ctx,
 
     errorText: null,
 
     puzzle_promise,
-    letters,
-    words,
-    pangrams,
+    letters: [],
+    words: {},
+    pangrams: new Set(),
     maxScore: 0,
     word: "",
     found: [],
@@ -202,6 +230,8 @@ function init(): Game | undefined {
     wordlistIsOpen: false,
     wordlistToggleTime: null,
     wordlistScroll: 0,
+    wordlistScrollSpeed: 0,
+    wordlistUserIsScrolling: false,
   };
 }
 
@@ -273,6 +303,7 @@ function wheel(time: DOMHighResTimeStamp, game: Game) {
   const centerX = game.width / 2;
   const centerY = game.height - hexRadius * 4.5;
   hexagon(game.ctx, centerX, centerY, hexRadius);
+  game.ctx.fillStyle = COLORS.yellow;
   if (!game.wordlistIsOpen && game.ctx.isPointInPath(game.mouseX, game.mouseY)) {
     if (game.mouseDown) {
       game.mouseDown = false;
@@ -280,11 +311,7 @@ function wheel(time: DOMHighResTimeStamp, game: Game) {
       game.clickedHexTime = time;
       clicked = game.letters[0];
       game.ctx.fillStyle = COLORS.darkyellow;
-    } else {
-      game.ctx.fillStyle = COLORS.darkyellow;
     }
-  } else {
-    game.ctx.fillStyle = COLORS.yellow;
   }
   if (game.clickedHex === 0 && game.clickedHexTime != null) {
     const duration = 200;
@@ -313,6 +340,7 @@ function wheel(time: DOMHighResTimeStamp, game: Game) {
     const x = centerX + Math.cos(radians * i + radians / 2) * radius;
     const y = centerY + Math.sin(radians * i + radians / 2) * radius;
     hexagon(game.ctx, x, y, hexRadius);
+    game.ctx.fillStyle = COLORS.gray;
     if (!game.wordlistIsOpen && game.ctx.isPointInPath(game.mouseX, game.mouseY)) {
       if (game.mouseDown) {
         game.mouseDown = false;
@@ -320,11 +348,7 @@ function wheel(time: DOMHighResTimeStamp, game: Game) {
         game.clickedHexTime = time;
         clicked = game.letters[i];
         game.ctx.fillStyle = COLORS.darkgray;
-      } else {
-        game.ctx.fillStyle = COLORS.darkgray;
       }
-    } else {
-      game.ctx.fillStyle = COLORS.gray;
     }
     if (game.clickedHex === i && game.clickedHexTime != null) {
       const duration = 200;
@@ -351,60 +375,69 @@ function wheel(time: DOMHighResTimeStamp, game: Game) {
 }
 
 function word(_time: DOMHighResTimeStamp, game: Game) {
-  let size = SIZES.medium(game);
-  game.ctx.font = `bold ${size}px ${FONTS.word}`;
-  game.ctx.textAlign = "center";
-  game.ctx.textBaseline = "middle";
-  game.ctx.fillStyle = COLORS.black;
-  while (game.ctx.measureText(game.word).width > game.width * 0.75) {
-    size = size * 0.95;
-    game.ctx.font = `bold ${size}px ${FONTS.word}`;
-  }
-
   const wordY = game.height - SIZES.big(game) * 8;
 
-  let text = game.word;
-  if (game.wordMessage != null) {
-    text = game.wordMessage;
-    game.ctx.fillStyle = COLORS.darkgray;
+  let fontsize = SIZES.medium(game);
+  game.ctx.font = `bold ${fontsize}px ${FONTS.word}`;
+  game.ctx.textBaseline = "middle";
+  game.ctx.fillStyle = COLORS.black;
+  let wordWidth = game.ctx.measureText(game.word).width;
+  while (wordWidth > game.width * 0.75) {
+    fontsize = fontsize * 0.95;
+    game.ctx.font = `bold ${fontsize}px ${FONTS.word}`;
+    wordWidth = game.ctx.measureText(game.word).width;
   }
-  game.ctx.fillText(text, game.width / 2, wordY);
+
+  // If there's a wordMessage, display that instead of the word
+  if (game.wordMessage != null) {
+    game.ctx.textAlign = "center";
+    game.ctx.fillStyle = COLORS.darkgray;
+    game.ctx.fillText(game.wordMessage, game.width / 2, wordY);
+    return;
+  }
+
+  game.ctx.textAlign = "left";
+  let letterX = game.width / 2 - wordWidth / 2;
+  for (const letter of game.word) {
+    game.ctx.fillStyle = letter === game.letters[0] ? COLORS.yellow : COLORS.black;
+    game.ctx.fillText(letter, letterX, wordY);
+    letterX += game.ctx.measureText(letter).width;
+  }
 }
 
 function controls(_time: DOMHighResTimeStamp, game: Game) {
   const controlY = game.height - SIZES.big(game);
   const controlRadius = SIZES.small(game);
+  const controlWidth = controlRadius * 4;
+  const controlsWidth = controlWidth * 2 + controlRadius + SIZES.medium(game) * 2;
   game.ctx.font = `${SIZES.tiny(game)}px ${FONTS.default}`;
   game.ctx.textAlign = "center";
   game.ctx.textBaseline = "middle";
+  game.ctx.strokeStyle = COLORS.black;
 
   // Delete
-  const deleteX = game.width / 2 - controlRadius * 4;
+  const deleteX = game.width / 2 - controlsWidth / 2;
   game.ctx.beginPath();
-  game.ctx.arc(deleteX - controlRadius, controlY, controlRadius, Math.PI / 2, Math.PI * 3 / 2)
-  game.ctx.arc(deleteX + controlRadius, controlY, controlRadius, Math.PI * 3 / 2, Math.PI / 2)
-  game.ctx.closePath();
+  game.ctx.roundRect(deleteX, controlY - controlRadius, controlWidth, controlRadius * 2, controlRadius);
+  game.ctx.fillStyle = COLORS.white;
   if (!game.wordlistIsOpen && game.ctx.isPointInPath(game.mouseX, game.mouseY)) {
     if (game.mouseDown) {
       game.mouseDown = false;
       game.ctx.fillStyle = COLORS.darkgray;
       game.word = game.word.substring(0, game.word.length - 1);
       window.requestAnimationFrame((time) => main(time, game));
-    } else {
-      game.ctx.fillStyle = COLORS.gray;
     }
-  } else {
-    game.ctx.fillStyle = COLORS.white;
   }
   game.ctx.lineWidth = 1;
   game.ctx.stroke();
   game.ctx.fill();
   game.ctx.fillStyle = COLORS.black;
-  game.ctx.fillText("Delete", deleteX, controlY);
+  game.ctx.fillText("Delete", deleteX + controlWidth / 2, controlY);
 
   // Shuffle
   game.ctx.beginPath();
   game.ctx.arc(game.width / 2, controlY, controlRadius, 0, 2 * Math.PI)
+  game.ctx.fillStyle = COLORS.white;
   if (!game.wordlistIsOpen && game.ctx.isPointInPath(game.mouseX, game.mouseY)) {
     if (game.mouseDown) {
       game.mouseDown = false;
@@ -414,22 +447,17 @@ function controls(_time: DOMHighResTimeStamp, game: Game) {
         .sort((a, b) => a.sort - b.sort)
         .map(({ letter }) => letter);
       window.requestAnimationFrame((time) => main(time, game));
-    } else {
-      game.ctx.fillStyle = COLORS.gray;
     }
-  } else {
-    game.ctx.fillStyle = COLORS.white;
   }
   game.ctx.lineWidth = 1;
   game.ctx.stroke();
   game.ctx.fill();
 
   // Enter
-  const enterX = game.width / 2 + controlRadius * 4;
+  const enterX = game.width / 2 + controlsWidth / 2 - controlWidth;
   game.ctx.beginPath();
-  game.ctx.arc(enterX - controlRadius, controlY, controlRadius, Math.PI / 2, Math.PI * 3 / 2)
-  game.ctx.arc(enterX + controlRadius, controlY, controlRadius, Math.PI * 3 / 2, Math.PI / 2)
-  game.ctx.closePath();
+  game.ctx.roundRect(enterX, controlY - controlRadius, controlWidth, controlRadius * 2, controlRadius);
+  game.ctx.fillStyle = COLORS.white;
   if (!game.wordlistIsOpen && game.ctx.isPointInPath(game.mouseX, game.mouseY)) {
     if (game.mouseDown) {
       game.mouseDown = false;
@@ -469,17 +497,13 @@ function controls(_time: DOMHighResTimeStamp, game: Game) {
       game.word = "";
 
       window.requestAnimationFrame((time) => main(time, game));
-    } else {
-      game.ctx.fillStyle = COLORS.gray;
     }
-  } else {
-    game.ctx.fillStyle = COLORS.white;
   }
   game.ctx.lineWidth = 1;
   game.ctx.stroke();
   game.ctx.fill();
   game.ctx.fillStyle = COLORS.black;
-  game.ctx.fillText("Enter", enterX, controlY);
+  game.ctx.fillText("Enter", enterX + controlWidth / 2, controlY);
 }
 
 const SCORERANKS: [number, string][] = [
@@ -499,9 +523,9 @@ function scorebar(_time: DOMHighResTimeStamp, game: Game) {
   const rank = SCORERANKS.findIndex(
     ([minScore, _]) => game.score < Math.round(minScore * game.maxScore)) - 1;
 
-  const scorebarWidth = game.width * 0.8;
+  const scorebarWidth = game.width - 2 * SIZES.tiny(game);
   const scorebarX = game.width / 2 - scorebarWidth / 2;
-  const scorebarY = game.height / 10;
+  const scorebarY = 3 * SIZES.small(game);
   game.ctx.font = `bold ${SIZES.tiny(game)}px ${FONTS.default}`;
   const rankWidth = SIZES.tiny(game)
     + Math.max(...SCORERANKS.map((([_, rank]) => game.ctx.measureText(rank).width)));
@@ -574,13 +598,13 @@ function scorebar(_time: DOMHighResTimeStamp, game: Game) {
 }
 
 function wordlist(time: DOMHighResTimeStamp, game: Game) {
-  const wordlistWidth = game.width * 0.8;
-  const wordlistHeight = game.wordlistIsOpen ? game.height * 0.7 : game.height / 20;
+  const wordlistWidth = game.width - 2 * SIZES.tiny(game);
   const wordlistX = game.width / 2 - wordlistWidth / 2;
-  const wordlistY = 2 * game.height / 10;
+  const wordlistY = 4 * SIZES.small(game);
+  const wordlistHeight = game.wordlistIsOpen ? game.height - wordlistY - SIZES.small(game) : game.height / 20;
 
   game.ctx.beginPath();
-  game.ctx.rect(wordlistX, wordlistY, wordlistWidth, wordlistHeight);
+  game.ctx.roundRect(wordlistX, wordlistY, wordlistWidth, wordlistHeight, SIZES.teeny(game));
   game.ctx.strokeStyle = COLORS.black;
   game.ctx.fillStyle = COLORS.white;
   game.ctx.fill();
@@ -604,8 +628,24 @@ function wordlist(time: DOMHighResTimeStamp, game: Game) {
     game.ctx.save();
     game.ctx.clip();
 
+    game.ctx.font = `bold ${SIZES.tiny(game)}px ${FONTS.default}`;
     const textHeight = game.ctx.measureText("A").fontBoundingBoxAscent
       + game.ctx.measureText("A").fontBoundingBoxDescent;
+
+    // Scrolling inertia
+    if (!game.wordlistUserIsScrolling && game.wordlistScrollSpeed !== 0) {
+      // The user is not currently scrolling and scroll speed is positive, i.e.
+      // the wordlist is scrolling via "inertia"
+      game.wordlistScroll -= game.wordlistScrollSpeed;
+      game.wordlistScrollSpeed *= 0.97;
+      if (Math.abs(game.wordlistScrollSpeed) < 0.1) {
+        game.wordlistScrollSpeed = 0;
+      }
+      window.requestAnimationFrame((time) => main(time, game));
+    } else if (game.wordlistUserIsScrolling) {
+      //game.wordlistUserIsScrolling = false;
+      //window.requestAnimationFrame((time) => main(time, game));
+    }
 
     // Restrict scrolling
     const rows = Math.ceil(game.found.length / 2) + 1;
@@ -620,10 +660,12 @@ function wordlist(time: DOMHighResTimeStamp, game: Game) {
     const leftX = wordlistX + wordlistWidth / 20;
     const rightX = wordlistX + wordlistWidth / 2 + wordlistWidth / 20;
     let count = 0;
-    const alphabetical = [...game.found].sort();
+    const alphabetical = [...game.found].sort((a, b) => a.localeCompare(b));
+    game.ctx.font = `${SIZES.tiny(game)}px ${FONTS.default}`;
     game.ctx.fillText(`${game.found.length} word${count === 1 ? "" : "s"} found`, leftX, textY);
 
     for (const word of alphabetical) {
+      game.ctx.font = `${game.pangrams.has(word) ? "bold" : ""} ${SIZES.tiny(game)}px ${FONTS.default}`;
       if (count % 2 === 0) {
         game.ctx.fillText(word, leftX, textY + textHeight * (Math.floor(count / 2) + 1));
       } else {
@@ -640,21 +682,25 @@ function wordlist(time: DOMHighResTimeStamp, game: Game) {
 
     // Restore previous clipping
     game.ctx.restore();
+  } else {
+    // Stop scrolling
+    game.wordlistScrollSpeed = 0;
   }
 
   // Wordlist preview
   if (!game.wordlistIsOpen) {
-    let preview = "";
+    let previewSize = 0;
+    const padding = SIZES.teeny(game);
+    game.ctx.fillStyle = COLORS.black;
     for (const word of game.found) {
-      const nextPreview = `${preview}${word} `;
-      if (game.ctx.measureText(nextPreview).width > wordlistWidth * 0.9) {
+      game.ctx.font = `${game.pangrams.has(word) ? "bold" : ""} ${SIZES.tiny(game)}px ${FONTS.default}`;
+      const wordSize = game.ctx.measureText(`${word}`).width;
+      if (previewSize + wordSize + padding > wordlistWidth - SIZES.teeny(game) * 2) {
         break;
       }
-
-      preview = nextPreview;
+      game.ctx.fillText(word, wordlistX + SIZES.tiny(game) + previewSize + padding, wordlistY + wordlistHeight / 2);
+      previewSize += wordSize + padding;
     }
-    game.ctx.fillStyle = COLORS.black;
-    game.ctx.fillText(preview, wordlistX + wordlistWidth / 20, wordlistY + wordlistHeight / 2);
   }
 
 }
@@ -682,3 +728,4 @@ function hexagon(ctx: CanvasRenderingContext2D, x: number, y: number, radius: nu
     ctx.lineTo(x + Math.cos(radians * i) * radius, y + Math.sin(radians * i) * radius);
   }
 }
+
