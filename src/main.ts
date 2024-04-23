@@ -420,15 +420,17 @@ function wheel(time: DOMHighResTimeStamp, game: Game) {
 function word(_time: DOMHighResTimeStamp, game: Game) {
   const wordY = game.height - SIZES.big(game) * 8;
 
+  const text = game.wordMessage ?? game.puzzle.word;
+
   let fontsize = SIZES.medium(game);
   game.ctx.font = `bold ${fontsize}px ${FONTS.word}`;
   game.ctx.textBaseline = "middle";
   game.ctx.fillStyle = COLORS.black;
-  let wordWidth = game.ctx.measureText(game.puzzle.word).width;
+  let wordWidth = game.ctx.measureText(text).width;
   while (wordWidth > game.width * 0.75) {
     fontsize = fontsize * 0.95;
     game.ctx.font = `bold ${fontsize}px ${FONTS.word}`;
-    wordWidth = game.ctx.measureText(game.puzzle.word).width;
+    wordWidth = game.ctx.measureText(text).width;
   }
 
   // If there's a wordMessage, display that instead of the word
@@ -476,8 +478,10 @@ function submitWord(_time: DOMHighResTimeStamp, game: Game) {
   } else {
     if (enteredWord.length < 4) {
       game.wordMessage = "Too short";
+    } else if (![...enteredWord].some(l => l.toUpperCase() === game.puzzle.letters[0])) {
+      game.wordMessage = "Missing center letter";
     } else {
-      game.wordMessage = "Not a word";
+      game.wordMessage = "Not in word list";
     }
   }
 }
