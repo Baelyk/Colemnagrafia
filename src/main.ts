@@ -133,7 +133,6 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   window.addEventListener("pointermove", (event) => {
     if (DEBUG.eventLogging) console.log("pointermove");
-    console.debug(event);
     if (!game.wordlistIsOpen) {
       return;
     }
@@ -145,9 +144,8 @@ window.addEventListener("DOMContentLoaded", async () => {
     window.requestAnimationFrame((time) => main(time, game));
   });
 
-  window.addEventListener("pointerup", (event) => {
+  window.addEventListener("pointerup", (_event) => {
     if (DEBUG.eventLogging) console.log("pointerup");
-    console.debug(event);
     if (!game.wordlistIsOpen) {
       return;
     }
@@ -660,14 +658,6 @@ function wordlist(time: DOMHighResTimeStamp, game: Game) {
   game.ctx.fill();
   game.ctx.stroke();
 
-  // Toggle the wordlist being open when you click on it
-  if (game.mouseDown && game.ctx.isPointInPath(game.mouseX, game.mouseY)) {
-    game.mouseDown = false;
-    game.wordlistIsOpen = !game.wordlistIsOpen;
-    game.wordlistToggleTime = time;
-    window.requestAnimationFrame((time) => main(time, game));
-  }
-
   game.ctx.font = `${SIZES.tiny(game)}px ${FONTS.default}`;
   game.ctx.textAlign = "left";
   game.ctx.textBaseline = "middle";
@@ -679,8 +669,8 @@ function wordlist(time: DOMHighResTimeStamp, game: Game) {
     game.ctx.clip();
 
     game.ctx.font = `bold ${SIZES.tiny(game)}px ${FONTS.default}`;
-    const textHeight = game.ctx.measureText("A").fontBoundingBoxAscent
-      + game.ctx.measureText("A").fontBoundingBoxDescent;
+    const textHeight = (game.ctx.measureText("A").fontBoundingBoxAscent
+      + game.ctx.measureText("A").fontBoundingBoxDescent) * 2;
 
     // Scrolling inertia
     if (!game.wordlistUserIsScrolling && game.wordlistScrollSpeed !== 0) {
@@ -707,8 +697,8 @@ function wordlist(time: DOMHighResTimeStamp, game: Game) {
     game.ctx.fillStyle = COLORS.black;
 
     const textY = wordlistY + textHeight - game.wordlistScroll;
-    const leftX = wordlistX + wordlistWidth / 20;
-    const rightX = wordlistX + wordlistWidth / 2 + wordlistWidth / 20;
+    const leftX = wordlistX + SIZES.tiny(game);
+    const rightX = wordlistX + wordlistWidth / 2 + SIZES.tiny(game);
     let count = 0;
     const alphabetical = [...game.puzzle.found].sort((a, b) => a.localeCompare(b));
     game.ctx.font = `${SIZES.tiny(game)}px ${FONTS.default}`;
@@ -716,10 +706,11 @@ function wordlist(time: DOMHighResTimeStamp, game: Game) {
 
     for (const word of alphabetical) {
       game.ctx.font = `${game.puzzle.pangrams.includes(word) ? "bold" : ""} ${SIZES.tiny(game)}px ${FONTS.default}`;
+      const wordY = textY + textHeight * (Math.floor(count / 2) + 1);
       if (count % 2 === 0) {
-        game.ctx.fillText(word, leftX, textY + textHeight * (Math.floor(count / 2) + 1));
+        game.ctx.fillText(word, leftX, wordY);
       } else {
-        game.ctx.fillText(word, rightX, textY + textHeight * (Math.floor(count / 2) + 1));
+        game.ctx.fillText(word, rightX, wordY);
       }
       count++;
     }
@@ -740,6 +731,7 @@ function wordlist(time: DOMHighResTimeStamp, game: Game) {
   // Wordlist preview
   if (!game.wordlistIsOpen) {
     let previewSize = 0;
+    const textX = wordlistX + SIZES.tiny(game);
     const padding = SIZES.teeny(game);
     game.ctx.fillStyle = COLORS.black;
     game.ctx.font = `${SIZES.tiny(game)}px ${FONTS.default}`;
@@ -749,14 +741,23 @@ function wordlist(time: DOMHighResTimeStamp, game: Game) {
       const wordSize = game.ctx.measureText(`${word}`).width;
       if (previewSize + wordSize + elipsisSize + padding > wordlistWidth - SIZES.tiny(game) * 2) {
         game.ctx.font = `${SIZES.tiny(game)}px ${FONTS.default}`;
-        game.ctx.fillText("...", wordlistX + SIZES.tiny(game) + previewSize + padding, wordlistY + wordlistHeight / 2);
+        game.ctx.fillText("...", textX + previewSize, wordlistY + wordlistHeight / 2);
         break;
       }
-      game.ctx.fillText(word, wordlistX + SIZES.tiny(game) + previewSize + padding, wordlistY + wordlistHeight / 2);
+      game.ctx.fillText(word, textX + previewSize, wordlistY + wordlistHeight / 2);
       previewSize += wordSize + padding;
     }
   }
 
+  // Toggle the wordlist being open when you click on it
+  game.ctx.beginPath();
+  game.ctx.roundRect(wordlistX, wordlistY, wordlistWidth, wordlistHeight, SIZES.teeny(game));
+  if (game.mouseDown && game.ctx.isPointInPath(game.mouseX, game.mouseY)) {
+    game.mouseDown = false;
+    game.wordlistIsOpen = !game.wordlistIsOpen;
+    game.wordlistToggleTime = time;
+    window.requestAnimationFrame((time) => main(time, game));
+  }
 }
 
 function isPangram(word: string, pangrams: string[]): boolean {
