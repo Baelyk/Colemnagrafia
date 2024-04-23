@@ -19,7 +19,7 @@ const COLORS = {
 
 const FONTS = {
   default: "sans-serif",
-  word: "JetBrains Mono, monospace",
+  word: "JetBrains Mono, sans-serif",
 }
 
 interface HasSize {
