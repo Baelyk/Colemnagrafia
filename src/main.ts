@@ -738,10 +738,14 @@ function wordlist(time: DOMHighResTimeStamp, game: Game) {
     let previewSize = 0;
     const padding = SIZES.teeny(game);
     game.ctx.fillStyle = COLORS.black;
+    game.ctx.font = `${SIZES.tiny(game)}px ${FONTS.default}`;
+    const elipsisSize = game.ctx.measureText("...").width;
     for (const word of game.puzzle.found) {
       game.ctx.font = `${game.puzzle.pangrams.includes(word) ? "bold" : ""} ${SIZES.tiny(game)}px ${FONTS.default}`;
       const wordSize = game.ctx.measureText(`${word}`).width;
-      if (previewSize + wordSize + padding > wordlistWidth - SIZES.teeny(game) * 2) {
+      if (previewSize + wordSize + elipsisSize + padding > wordlistWidth - SIZES.tiny(game) * 2) {
+        game.ctx.font = `${SIZES.tiny(game)}px ${FONTS.default}`;
+        game.ctx.fillText("...", wordlistX + SIZES.tiny(game) + previewSize + padding, wordlistY + wordlistHeight / 2);
         break;
       }
       game.ctx.fillText(word, wordlistX + SIZES.tiny(game) + previewSize + padding, wordlistY + wordlistHeight / 2);
