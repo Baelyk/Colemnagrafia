@@ -760,6 +760,10 @@ function isPangram(word: string, pangrams: string[]): boolean {
 }
 
 function scoreWord(word: string, pangrams: string[]): number {
+  if (word.length === 4) {
+    return 1;
+  }
+
   return word.length + (isPangram(word, pangrams) ? 7 : 0);
 }
 
