@@ -80,17 +80,17 @@ fn main() {
     let mut palabras_rs = format!("pub const PALABRAS: [&'static str; {}] = [\n", words.len());
     words
         .iter()
-        .for_each(|word| palabras_rs.push_str(&format!("\t\"{}\",\n", word)));
+        .for_each(|word| palabras_rs.push_str(&format!("    \"{}\",\n", word)));
     palabras_rs.push_str("];\n\n");
 
     palabras_rs.push_str(&format!(
-        "pub const PANGRAMS: [&'static str; {}] = [",
+        "pub const PANGRAMS: [&'static str; {}] = [\n",
         pangrams.len()
     ));
     pangrams
         .iter()
-        .for_each(|word| palabras_rs.push_str(&format!("\t\"{}\",\n", word)));
-    palabras_rs.push_str("];\n\n");
+        .for_each(|word| palabras_rs.push_str(&format!("    \"{}\",\n", word)));
+    palabras_rs.push_str("];\n");
 
     fs::write("palabras.rs", palabras_rs).expect("Unable to write palabras.rs");
 }
