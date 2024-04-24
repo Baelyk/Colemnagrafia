@@ -75,13 +75,22 @@ async fn create_puzzle_from_letters(
         .cloned()
         .collect();
 
-    if words.len() <= 20 {
+    if words.len() < 25 {
         println!(
             "Failed, only found {} words from {:?}",
             words.len(),
             letters
         );
         return Err(Error::BadPuzzle("Too few words".into()));
+    }
+
+    if words.len() > 100 {
+        println!(
+            "Failed, found too many words ({}) from {:?}",
+            words.len(),
+            letters
+        );
+        return Err(Error::BadPuzzle("Too many words".into()));
     }
 
     println!(
@@ -159,6 +168,7 @@ async fn daily_puzzle() -> Result<(Vec<char>, HashMap<String, HashSet<String>>, 
             ));
         }
     }
+    println!("Took {} tries to create a puzzle", tries);
 
     puzzle
 }
