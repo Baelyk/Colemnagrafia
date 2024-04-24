@@ -1,155 +1,53 @@
-use inquire::{InquireError, Text};
-use serde::{Deserialize, Serialize};
-use std::collections::{HashMap, HashSet};
+use clap::{Parser, Subcommand};
+use parser::Categoria;
+use std::collections::HashSet;
 use unidecode::unidecode;
 
-#[derive(Clone, Copy, Debug, Eq, Deserialize, PartialEq, Serialize)]
-enum Categoria {
-    /// Adjetivo
-    A,
-    /// Adverbio
-    R,
-    /// Afijo
-    J,
-    /// Artículo
-    T,
-    /// Conjunción
-    C,
-    /// Contracción
-    E,
-    /// Cuantificador
-    Q,
-    /// Demostrativo
-    D,
-    /// Desconocido
-    U,
-    /// Extranjerismo
-    F,
-    /// Interjección
-    I,
-    /// Interrogativo
-    W,
-    /// Numeral
-    M,
-    /// Posesivo
-    X,
-    /// Preposición
-    P,
-    /// Pronombre personal
-    L,
-    /// Puntación
-    Y,
-    /// Relativo
-    H,
-    /// Sustantivo
-    N,
-    /// Verbo
-    V,
+mod explore;
+mod generate;
+mod parser;
+
+/// Program to explore the RAE's CREA and generate the wordlists for the game
+#[derive(Parser, Debug)]
+struct Args {
+    #[command(subcommand)]
+    command: Command,
 }
 
-/// Elemento, Lema, Categoría, Frecuencia con signos ort., Frec norm. sin signos ort., Frec. norm
-type ElementoRecord = (String, String, Categoria, usize, f64, f64);
-
-/// Elemento, Categoría, Frecuencia, Frec norm.
-type FormaRecord = (String, usize, f64);
-
-/// Elemento, Categoría, Frecuencia con signos ort., Frec norm. sin signos ort., Frec. norm
-type LemaRecord = (String, Categoria, usize, f64, f64);
+#[derive(Subcommand, Debug)]
+enum Command {
+    /// Explore the CREA files
+    Explore,
+    /// Generate palabras.rs
+    Generate,
+}
 
 fn main() {
-    println!("Parsing CREA elementos...");
-    let mut elementos: HashMap<String, ElementoRecord> = HashMap::new();
-    let mut lemas_reader = csv::ReaderBuilder::new()
-        .delimiter(b'\t')
-        .from_path("crea_elementos.txt")
-        .expect("Unable to read crea_elementos.txt");
-    lemas_reader
-        .deserialize::<ElementoRecord>()
-        .filter_map(|record| record.ok())
-        .for_each(|record| {
-            elementos.insert(record.0.clone(), record);
-        });
-    println!("Found {} elementos", elementos.len());
+    let args = Args::parse();
 
-    println!("Parsing CREA formas ortograficas...");
-    let mut formas: HashMap<String, FormaRecord> = HashMap::new();
-    let mut lemas_reader = csv::ReaderBuilder::new()
-        .delimiter(b'\t')
-        .from_path("crea_formas_ortograficas.txt")
-        .expect("Unable to read crea_formas_ortograficas");
-    lemas_reader
-        .deserialize::<FormaRecord>()
-        .filter_map(|record| record.ok())
-        .for_each(|record| {
-            formas.insert(record.0.clone(), record);
-        });
-    println!("Found {} formas", formas.len());
-
-    println!("Parsing CREA lemas...");
-    let mut lemas: HashMap<String, LemaRecord> = HashMap::new();
-    let mut lemas_reader = csv::ReaderBuilder::new()
-        .delimiter(b'\t')
-        .from_path("crea_lemas.txt")
-        .expect("Unable to read file");
-    lemas_reader
-        .deserialize::<LemaRecord>()
-        .filter_map(|record| record.ok())
-        .for_each(|record| {
-            lemas.insert(record.0.clone(), record);
-        });
-    println!("Found {} lemas", lemas.len());
-
-    println!("\nReady for requests");
-
-    loop {
-        let response = Text::new("Enter a word:").prompt();
-        let Ok(word) = response else {
-            match response {
-                Err(InquireError::OperationInterrupted) => break,
-                Err(InquireError::OperationCanceled) => println!("Use Ctrl-C to exit"),
-                _ => {
-                    println!("Something went wrong.");
-                }
-            }
-            continue;
-        };
-        let mut found_something = false;
-
-        if let Some(elemento) = elementos.get(&word) {
-            found_something = true;
-            println!("Elemento: {:?}", elemento);
-            if filter(&elemento.0, Some(elemento.2), elemento.3) {
-                println!("\tValid");
-            }
-        }
-
-        if let Some(forma) = formas.get(&word) {
-            found_something = true;
-            println!("Forma: {:?}", forma);
-            if filter(&forma.0, None, forma.1) {
-                println!("\tValid");
-            }
-        }
-
-        if let Some(lema) = lemas.get(&word) {
-            found_something = true;
-            println!("Lema: {:?}", lema);
-            if filter(&lema.0, Some(lema.1), lema.2) {
-                println!("\tValid");
-            }
-        }
-
-        if !found_something {
-            println!("No such element, forma, or lema found");
-        }
+    match args.command {
+        Command::Explore => explore::explore(),
+        Command::Generate => generate::generate(),
     }
 }
 
-fn filter(word: &String, category: Option<Categoria>, freq: usize) -> bool {
+pub fn filter(
+    word: &String,
+    lema: Option<&String>,
+    category: Option<Categoria>,
+    freq: usize,
+    short_circuit: bool,
+) -> (bool, bool) {
+    const ONLY_ACCEPT_INFINITIVES: bool = false;
+
     let mut valid = true;
+    let mut common_pangram = false;
 
     // Words must be decently common
     if freq < 50 {
+        if short_circuit {
+            return (false, common_pangram);
+        };
         println!("\tToo infrequent");
         valid = false;
     }
@@ -157,20 +55,44 @@ fn filter(word: &String, category: Option<Categoria>, freq: usize) -> bool {
     // No bizzare categories
     if category == Some(Categoria::F) {
         // No foreign words
+        if short_circuit {
+            return (false, common_pangram);
+        };
         println!("\tForeign");
         valid = false;
     } else if category == Some(Categoria::M) {
         // No numerals
+        if short_circuit {
+            return (false, common_pangram);
+        };
         println!("\tNumeral");
         valid = false;
     } else if category == Some(Categoria::Y) {
         // No puntaciones
+        if short_circuit {
+            return (false, common_pangram);
+        };
         println!("\tPunctuation");
         valid = false;
     }
 
+    // Only take verbs in the infinitive
+    if ONLY_ACCEPT_INFINITIVES && category == Some(Categoria::V) {
+        // Infinitives should be the same as their lema
+        if Some(word) != lema {
+            if short_circuit {
+                return (false, common_pangram);
+            };
+            println!("\tVerb not an infinitive");
+            valid = false;
+        }
+    }
+
     // Ignore short words
     if word.chars().count() < 4 {
+        if short_circuit {
+            return (false, common_pangram);
+        };
         println!("\tToo short");
         valid = false;
     }
@@ -182,6 +104,9 @@ fn filter(word: &String, category: Option<Categoria>, freq: usize) -> bool {
         .chars()
         .all(|c| c.is_ascii_alphabetic() && c.is_lowercase())
     {
+        if short_circuit {
+            return (false, common_pangram);
+        };
         println!("\tNot only lowercase letters");
         valid = false;
     }
@@ -189,11 +114,19 @@ fn filter(word: &String, category: Option<Categoria>, freq: usize) -> bool {
     // No point having more than 7 unique letters
     let uniques = count_unique_chars(&stripped);
     if uniques > 7 {
+        if short_circuit {
+            return (false, common_pangram);
+        };
         println!("\tMore than 7 unique letters");
         valid = false;
+    } else if uniques == 7 && freq > 1000 {
+        common_pangram = true;
+        if !short_circuit {
+            println!("\tIs a common pangram");
+        }
     }
 
-    valid
+    (valid, common_pangram)
 }
 
 fn count_unique_chars(word: &str) -> usize {
