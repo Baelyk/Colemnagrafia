@@ -556,12 +556,18 @@ function word(_time: DOMHighResTimeStamp, game: Game) {
   }
 }
 
+function removeAccents(str: string): string {
+  return str.normalize("NFD").replace(/\p{Diacritic}/gu, "");
+}
+
 function submitWord(_time: DOMHighResTimeStamp, game: Game) {
   const enteredWord = game.puzzle.word.toLowerCase();
   game.puzzle.word = "";
 
   if (Object.hasOwn(game.puzzle.words, enteredWord)) {
-    if (game.puzzle.found.includes(enteredWord)) {
+    // The entered word has no accents, i.e. is normalized, so normalize the
+    // found words before checking if this word has already been found
+    if (game.puzzle.found.map(removeAccents).includes(enteredWord)) {
       game.wordMessage = "Already found";
     } else {
       let count = 0;
