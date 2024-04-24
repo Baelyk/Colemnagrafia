@@ -63,6 +63,8 @@ interface Game {
   wordlistScrollSpeed: number;
   /** Whether the user is currently scrolling (i.e. finger moving the list) */
   wordlistUserIsScrolling: boolean;
+
+  menuOpen: boolean;
 }
 
 interface Puzzle {
@@ -225,6 +227,8 @@ function init(): Game {
     wordlistScroll: 0,
     wordlistScrollSpeed: 0,
     wordlistUserIsScrolling: false,
+
+    menuOpen: false,
   };
 }
 
@@ -236,32 +240,35 @@ async function savePuzzle(game: Game) {
   await store.save();
 }
 
-async function loadPuzzle(game: Game) {
+async function loadPuzzle(game: Game, forceNewPuzzle?: "daily" | "new") {
   const store = new Store("store.dat");
-  let storedPuzzle: Puzzle | null = null;
-  let storedPuzzleDate: string | null = null;
-
-  try {
-    console.log("Loading puzzle...");
-    storedPuzzle = await store.get<Puzzle>("puzzle");
-    storedPuzzleDate = await store.get<string>("puzzle-date");
-  } catch (error) {
-    console.error("Failed to get stored puzzle:");
-    console.error(error);
-  }
-
   const today = new Date(Date.now()).toDateString();
-  if (storedPuzzleDate != null && storedPuzzle != null) {
-    console.debug(`Loaded stored puzzle state from ${storedPuzzleDate}`);
-    console.debug(storedPuzzle);
-    if (storedPuzzleDate === today) {
-      console.log("Stored puzzle is from today, using it");
-      game.puzzle = storedPuzzle;
-      return;
+
+  if (forceNewPuzzle == null) {
+    let storedPuzzle: Puzzle | null = null;
+    let storedPuzzleDate: string | null = null;
+
+    try {
+      console.log("Loading puzzle...");
+      storedPuzzle = await store.get<Puzzle>("puzzle");
+      storedPuzzleDate = await store.get<string>("puzzle-date");
+    } catch (error) {
+      console.error("Failed to get stored puzzle:");
+      console.error(error);
+    }
+
+    if (storedPuzzleDate != null && storedPuzzle != null) {
+      console.debug(`Loaded stored puzzle state from ${storedPuzzleDate}`);
+      console.debug(storedPuzzle);
+      if (storedPuzzleDate === today) {
+        console.log("Stored puzzle is from today, using it");
+        game.puzzle = storedPuzzle;
+        return;
+      }
     }
   }
 
-  console.log("Creating a new puzzle...");
+  console.log(`Creating a new ${forceNewPuzzle ?? "daily"} puzzle...`);
   const puzzle = await invoke("daily_puzzle") as [string[], WordMap, string[]];
   game.puzzle.letters = puzzle[0].map(l => l.toUpperCase());
   game.puzzle.words = puzzle[1];
@@ -279,6 +286,16 @@ async function loadPuzzle(game: Game) {
   savePuzzle(game);
 }
 
+async function restartPuzzle(game: Game) {
+  game.puzzle.word = "";
+  game.puzzle.found = [];
+  if (DEBUG.foundAllWords) {
+    game.puzzle.found = Object.values(game.puzzle.words).flat();
+  }
+  game.puzzle.score = 0;
+  savePuzzle(game);
+}
+
 function main(time: DOMHighResTimeStamp, game: Game) {
   game.ctx.clearRect(0, 0, game.width, game.height);
 
@@ -289,6 +306,11 @@ function main(time: DOMHighResTimeStamp, game: Game) {
 
   if (game.puzzle.letters.length === 0) {
     loading(time, game);
+    return;
+  }
+
+  menu(time, game);
+  if (game.menuOpen) {
     return;
   }
 
@@ -327,6 +349,92 @@ function loading(time: DOMHighResTimeStamp, game: Game) {
 
   const dots = ".".repeat((time / 250) % 4);
   game.ctx.fillText(`Loading${dots}`, game.width / 2 - game.ctx.measureText("Loading...").width / 2, game.height / 2);
+}
+
+function menu(_time: DOMHighResTimeStamp, game: Game) {
+  if (!game.menuOpen) {
+    const menuWidth = SIZES.small(game);
+    const menuX = game.width - menuWidth - SIZES.tiny(game);
+    const menuY = SIZES.tiny(game);
+    const menuHamburgerHeight = SIZES.teeny(game) / 2;
+    const menuHeight = menuHamburgerHeight * 3 * 3 * menuHamburgerHeight;
+    game.ctx.beginPath();
+    for (let i = 0; i < 3; i++) {
+      game.ctx.roundRect(menuX, menuY + 3 * i * menuHamburgerHeight, menuWidth, menuHamburgerHeight, SIZES.tiny(game));
+    }
+    game.ctx.fillStyle = COLORS.black;
+    game.ctx.fill();
+
+    // Detect interaction
+    game.ctx.beginPath();
+    game.ctx.rect(menuX, menuY, menuWidth, menuHeight);
+    if (game.mouseDown && game.ctx.isPointInPath(game.mouseX, game.mouseY)) {
+      game.mouseDown = false;
+      game.menuOpen = true;
+
+      window.requestAnimationFrame((time) => main(time, game));
+    }
+
+  }
+
+  if (game.menuOpen) {
+    const menuButtonWidth = game.width - 2 * SIZES.small(game);
+    const menuX = (game.width - menuButtonWidth) / 2;
+
+    game.ctx.font = `${SIZES.small(game)}px ${FONTS.default}`
+    game.ctx.textAlign = "left";
+    game.ctx.textBaseline = "middle";
+    const menuButtonHeight = (game.ctx.measureText("A").fontBoundingBoxAscent
+      + game.ctx.measureText("A").fontBoundingBoxDescent) + SIZES.small(game);
+    const menuRowHeight = menuButtonHeight + SIZES.small(game);
+
+    const menuOptions: [string, () => void][] = [
+      ["Restart", () => {
+        restartPuzzle(game);
+        game.menuOpen = false;
+
+        window.requestAnimationFrame((time) => main(time, game));
+      }],
+      ["Daily Puzzle", () => {
+        loadPuzzle(game, "daily");
+        game.menuOpen = false;
+
+        window.requestAnimationFrame((time) => main(time, game));
+      }],
+      ["New Puzzle", () => { }]
+    ];
+
+    const menuY = game.height / 2 - menuOptions.length * menuRowHeight;
+
+    menuOptions.forEach(([menuOptionText, menuOptionAction], i) => {
+      game.ctx.beginPath();
+      game.ctx.roundRect(menuX, menuY + menuRowHeight * i, menuButtonWidth, menuButtonHeight, SIZES.teeny(game));
+      if (game.mouseDown && game.ctx.isPointInPath(game.mouseX, game.mouseY)) {
+        game.mouseDown = false;
+
+        menuOptionAction();
+
+        game.ctx.fillStyle = COLORS.darkgray;
+        window.requestAnimationFrame((time) => main(time, game));
+      } else {
+        game.ctx.fillStyle = COLORS.white;
+      }
+      game.ctx.fill();
+      game.ctx.strokeStyle = COLORS.black;
+      game.ctx.stroke();
+
+      game.ctx.fillStyle = COLORS.black;
+      game.ctx.fillText(menuOptionText, menuX + SIZES.small(game), menuY + menuButtonHeight / 2 + (menuRowHeight) * i);
+    });
+
+    // Any interaction not on a menu option closes the menu
+    if (game.mouseDown) {
+      game.mouseDown = false;
+      game.menuOpen = false;
+
+      window.requestAnimationFrame((time) => main(time, game));
+    }
+  }
 }
 
 /**
