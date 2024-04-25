@@ -309,8 +309,8 @@ function getPuzzleHints(puzzle: Puzzle): [HintsData, HintsData] {
 
   const maxLength = Math.max(...Object.keys(puzzle.words).map((word) => word.length));
   for (const letter of [...puzzle.letters].sort()) {
-    hintsPuzzle.lengths.set(letter.toLowerCase(), Array(maxLength).fill(0));
-    hintsFound.lengths.set(letter.toLowerCase(), Array(maxLength).fill(0));
+    hintsPuzzle.lengths.set(letter.toLowerCase(), Array(maxLength + 1).fill(0));
+    hintsFound.lengths.set(letter.toLowerCase(), Array(maxLength + 1).fill(0));
   }
 
   for (const word of Object.values(puzzle.words).flat()) {
@@ -693,7 +693,7 @@ function hints(_time: DOMHighResTimeStamp, game: Game, menuBarY: number, menuBar
         }
       });
     }
-    const lengths = [...lengthsSet].sort();
+    const lengths = [...lengthsSet].sort((a, b) => a - b);
     const lengthsTotals = Array(lengths.length).fill(0);
     //const tableWidth = (lengths.length + 2) * cellSize;
     const tableHeight = cellSize * (letters.length + 2);
