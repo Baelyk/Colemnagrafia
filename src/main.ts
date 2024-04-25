@@ -65,6 +65,14 @@ interface Game {
   wordlistUserIsScrolling: boolean;
 
   menuOpen: boolean;
+
+  hintsOpen: boolean;
+  hintsHeight: number;
+  hintsPuzzle: HintsData,
+  hintsFound: HintsData,
+  hintsScroll: number;
+  hintsScrollSpeed: number;
+  hintsUserIsScrolling: boolean;
 }
 
 interface Puzzle {
@@ -75,6 +83,18 @@ interface Puzzle {
   word: string;
   found: string[];
   score: number;
+}
+
+interface HintsData {
+  pangrams: number;
+  lengths: Map<string, number[]>;
+  starts: Map<string, number>;
+}
+
+interface SerializableHintsData {
+  pangrams: number;
+  lengths: [string, number[]][];
+  starts: [string, number][];
 }
 
 window.addEventListener("DOMContentLoaded", async () => {
@@ -124,35 +144,46 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   window.addEventListener("wheel", (event) => {
     if (DEBUG.eventLogging) console.log("wheel");
-    if (!game.wordlistIsOpen) {
-      return;
+    if (game.wordlistIsOpen) {
+      game.wordlistScroll += event.deltaY;
     }
-
-    game.wordlistScroll += event.deltaY;
+    if (game.hintsOpen) {
+      game.hintsScroll += event.deltaY;
+    }
 
     window.requestAnimationFrame((time) => main(time, game));
   });
 
   window.addEventListener("pointermove", (event) => {
     if (DEBUG.eventLogging) console.log("pointermove");
-    if (!game.wordlistIsOpen) {
+
+    if (event.pointerType === "mouse" && event.pressure < 0.5) {
       return;
     }
 
-    game.wordlistScroll -= event.movementY;
-    game.wordlistScrollSpeed = event.movementY;
-    game.wordlistUserIsScrolling = true;
+    if (game.wordlistIsOpen) {
+      game.wordlistScroll -= event.movementY;
+      game.wordlistScrollSpeed = event.movementY;
+      game.wordlistUserIsScrolling = true;
+    }
+    if (game.hintsOpen) {
+      game.hintsScroll -= event.movementY;
+      game.hintsScrollSpeed = event.movementY;
+      game.hintsUserIsScrolling = true;
+    }
 
     window.requestAnimationFrame((time) => main(time, game));
   });
 
   window.addEventListener("pointerup", (_event) => {
     if (DEBUG.eventLogging) console.log("pointerup");
-    if (!game.wordlistIsOpen) {
-      return;
-    }
 
-    game.wordlistUserIsScrolling = false;
+    if (game.wordlistIsOpen) {
+      game.wordlistUserIsScrolling = false;
+    }
+    if (game.hintsOpen) {
+      game.hintsUserIsScrolling = false;
+    }
 
     window.requestAnimationFrame((time) => main(time, game));
   });
@@ -203,6 +234,18 @@ function init(): Game {
     score: 0,
   };
 
+  const hintsPuzzle: HintsData = {
+    pangrams: 0,
+    lengths: new Map(),
+    starts: new Map(),
+  };
+
+  const hintsFound: HintsData = {
+    pangrams: 0,
+    lengths: new Map(),
+    starts: new Map(),
+  };
+
   return {
     width,
     height,
@@ -229,6 +272,14 @@ function init(): Game {
     wordlistUserIsScrolling: false,
 
     menuOpen: false,
+
+    hintsOpen: false,
+    hintsHeight: 0,
+    hintsPuzzle,
+    hintsFound,
+    hintsScroll: 0,
+    hintsScrollSpeed: 0,
+    hintsUserIsScrolling: false,
   };
 }
 
@@ -236,8 +287,58 @@ async function savePuzzle(game: Game) {
   console.log("Saving puzzle state");
   const store = new Store("store.dat");
   await store.set("puzzle", game.puzzle);
+  await store.set("hints-puzzle", serializeHints(game.hintsPuzzle));
+  await store.set("hints-found", serializeHints(game.hintsFound));
   // Manually save the store now as well (instead of hoping for a graceful exit)
   await store.save();
+}
+
+function getPuzzleHints(puzzle: Puzzle): [HintsData, HintsData] {
+  const hintsPuzzle: HintsData = {
+    pangrams: 0,
+    lengths: new Map(),
+    starts: new Map(),
+  };
+  const hintsFound: HintsData = {
+    pangrams: 0,
+    lengths: new Map(),
+    starts: new Map(),
+  };
+
+  hintsPuzzle.pangrams = puzzle.pangrams.length;
+
+  const maxLength = Math.max(...Object.keys(puzzle.words).map((word) => word.length));
+  for (const letter of [...puzzle.letters].sort()) {
+    hintsPuzzle.lengths.set(letter.toLowerCase(), Array(maxLength).fill(0));
+    hintsFound.lengths.set(letter.toLowerCase(), Array(maxLength).fill(0));
+  }
+
+  for (const word of Object.values(puzzle.words).flat()) {
+    (hintsPuzzle.lengths.get(word[0]) ?? [])[word.length] += 1;
+
+    const start = word.substring(0, 2);
+    const numStarts = hintsPuzzle.starts.get(start) ?? 0;
+    hintsPuzzle.starts.set(start, numStarts + 1);
+    hintsFound.starts.set(start, 0);
+  }
+
+  return [hintsPuzzle, hintsFound];
+}
+
+function serializeHints(hints: HintsData): SerializableHintsData {
+  return {
+    pangrams: hints.pangrams,
+    lengths: Array.from(hints.lengths.entries()),
+    starts: Array.from(hints.starts.entries()),
+  }
+}
+
+function deserializeHints(hints: SerializableHintsData): HintsData {
+  return {
+    pangrams: hints.pangrams,
+    lengths: new Map(hints.lengths),
+    starts: new Map(hints.starts),
+  }
 }
 
 async function loadPuzzle(game: Game, forceNewPuzzle?: "daily" | "new") {
@@ -247,22 +348,28 @@ async function loadPuzzle(game: Game, forceNewPuzzle?: "daily" | "new") {
   if (forceNewPuzzle == null) {
     let storedPuzzle: Puzzle | null = null;
     let storedPuzzleDate: string | null = null;
+    let storedHintsPuzzle: SerializableHintsData | null = null;
+    let storedHintsFound: SerializableHintsData | null = null;
 
     try {
       console.log("Loading puzzle...");
       storedPuzzle = await store.get<Puzzle>("puzzle");
       storedPuzzleDate = await store.get<string>("puzzle-date");
+      storedHintsPuzzle = await store.get<SerializableHintsData>("hints-puzzle");
+      storedHintsFound = await store.get<SerializableHintsData>("hints-found");
     } catch (error) {
-      console.error("Failed to get stored puzzle:");
+      console.error("Failed to get stored data:");
       console.error(error);
     }
 
-    if (storedPuzzleDate != null && storedPuzzle != null) {
+    if (storedPuzzleDate != null && storedPuzzle != null && storedHintsPuzzle != null && storedHintsFound != null) {
       console.debug(`Loaded stored puzzle state from ${storedPuzzleDate}`);
       console.debug(storedPuzzle);
       if (storedPuzzleDate === today) {
         console.log("Stored puzzle is from today, using it");
         game.puzzle = storedPuzzle;
+        game.hintsPuzzle = deserializeHints(storedHintsPuzzle);
+        game.hintsFound = deserializeHints(storedHintsFound);
         return;
       }
     }
@@ -281,6 +388,8 @@ async function loadPuzzle(game: Game, forceNewPuzzle?: "daily" | "new") {
     game.puzzle.found = Object.values(game.puzzle.words).flat();
   }
   game.puzzle.score = 0;
+  [game.hintsPuzzle, game.hintsFound] = getPuzzleHints(game.puzzle);
+  console.log(game.hintsPuzzle);
 
   await store.set("puzzle-date", today);
   savePuzzle(game);
@@ -293,6 +402,7 @@ async function restartPuzzle(game: Game) {
     game.puzzle.found = Object.values(game.puzzle.words).flat();
   }
   game.puzzle.score = 0;
+  [, game.hintsFound] = getPuzzleHints(game.puzzle);
   savePuzzle(game);
 }
 
@@ -309,8 +419,11 @@ function main(time: DOMHighResTimeStamp, game: Game) {
     return;
   }
 
-  menu(time, game);
+  menuBar(time, game);
   if (game.menuOpen) {
+    return;
+  }
+  if (game.hintsOpen) {
     return;
   }
 
@@ -351,16 +464,30 @@ function loading(time: DOMHighResTimeStamp, game: Game) {
   game.ctx.fillText(`Loading${dots}`, game.width / 2 - game.ctx.measureText("Loading...").width / 2, game.height / 2);
 }
 
-function menu(_time: DOMHighResTimeStamp, game: Game) {
+function menuBar(time: DOMHighResTimeStamp, game: Game) {
+  const menuBarY = SIZES.tiny(game);
+  const menuBarPadding = SIZES.tiny(game);
+
+  const menuWidth = SIZES.small(game);
+  const menuX = game.width - menuWidth - menuBarPadding;
+  const menuHamburgerHeight = SIZES.teeny(game) / 2;
+  const menuHeight = 3 * 4 * menuHamburgerHeight;
+  menu(time, game, menuBarY, menuWidth, menuX, menuHamburgerHeight, menuHeight);
+  if (game.menuOpen) {
+    return;
+  }
+
+  hints(time, game, menuBarY, menuBarPadding, menuHeight, menuX);
+  if (game.hintsOpen) {
+    return;
+  }
+}
+
+function menu(_time: DOMHighResTimeStamp, game: Game, menuY: number, menuWidth: number, menuX: number, menuHamburgerHeight: number, menuHeight: number) {
   if (!game.menuOpen) {
-    const menuWidth = SIZES.small(game);
-    const menuX = game.width - menuWidth - SIZES.tiny(game);
-    const menuY = SIZES.tiny(game);
-    const menuHamburgerHeight = SIZES.teeny(game) / 2;
-    const menuHeight = menuHamburgerHeight * 3 * 3 * menuHamburgerHeight;
     game.ctx.beginPath();
     for (let i = 0; i < 3; i++) {
-      game.ctx.roundRect(menuX, menuY + 3 * i * menuHamburgerHeight, menuWidth, menuHamburgerHeight, SIZES.tiny(game));
+      game.ctx.roundRect(menuX, menuY + menuHamburgerHeight * 1.5 + 4 * i * menuHamburgerHeight, menuWidth, menuHamburgerHeight, SIZES.tiny(game));
     }
     game.ctx.fillStyle = COLORS.black;
     game.ctx.fill();
@@ -384,8 +511,7 @@ function menu(_time: DOMHighResTimeStamp, game: Game) {
     game.ctx.font = `${SIZES.small(game)}px ${FONTS.default}`
     game.ctx.textAlign = "left";
     game.ctx.textBaseline = "middle";
-    const menuButtonHeight = (game.ctx.measureText("A").fontBoundingBoxAscent
-      + game.ctx.measureText("A").fontBoundingBoxDescent) + SIZES.small(game);
+    const menuButtonHeight = getTextHeight(game.ctx, "A") + SIZES.small(game);
     const menuRowHeight = menuButtonHeight + SIZES.small(game);
 
     const menuOptions: [string, () => void][] = [
@@ -434,6 +560,316 @@ function menu(_time: DOMHighResTimeStamp, game: Game) {
 
       window.requestAnimationFrame((time) => main(time, game));
     }
+  }
+}
+
+function hints(_time: DOMHighResTimeStamp, game: Game, menuBarY: number, menuBarPadding: number, menuHeight: number, menuX: number) {
+  const hintsX = menuX - menuBarPadding - menuHeight;
+  const hintsY = menuBarY;
+  game.ctx.beginPath();
+  game.ctx.roundRect(hintsX, hintsY, menuHeight, menuHeight, SIZES.teeny(game));
+  game.ctx.strokeStyle = COLORS.black;
+  if (game.hintsOpen) {
+    game.ctx.lineWidth = 2;
+    game.ctx.fillStyle = COLORS.yellow;
+  } else {
+    game.ctx.lineWidth = 1;
+    game.ctx.fillStyle = COLORS.white;
+  }
+  game.ctx.fill();
+  game.ctx.stroke();
+
+  // Detect interaction
+  if (game.mouseDown && game.ctx.isPointInPath(game.mouseX, game.mouseY)) {
+    game.mouseDown = false;
+    game.hintsOpen = !game.hintsOpen;
+
+    window.requestAnimationFrame((time) => main(time, game));
+  }
+
+  game.ctx.font = `bold ${SIZES.tiny(game)}px ${FONTS.word}`
+  game.ctx.textAlign = "center";
+  game.ctx.textBaseline = "middle";
+  game.ctx.fillStyle = COLORS.black;
+  game.ctx.fillText("?", hintsX + menuHeight / 2, hintsY + menuHeight / 2);
+
+  if (game.hintsOpen) {
+    let hintsY = SIZES.teeny(game);
+
+    game.ctx.fillStyle = COLORS.black;
+    game.ctx.textAlign = "left";
+    game.ctx.textBaseline = "top";
+    const hintsHeader = "hints";
+    game.ctx.font = `bold ${SIZES.medium(game)}px ${FONTS.word}`
+    game.ctx.fillText("Hints", menuBarPadding, hintsY);
+    hintsY += getTextHeight(game.ctx, hintsHeader);
+
+    // Clip to only display text inside the wordlist
+    game.ctx.beginPath();
+    game.ctx.rect(0, hintsY, game.width, game.height);
+    game.ctx.save();
+    game.ctx.clip();
+
+    hintsY += SIZES.small(game);
+
+    // Scrolling inertia
+    if (!game.hintsUserIsScrolling && game.hintsScrollSpeed !== 0) {
+      // The user is not currently scrolling and scroll speed is positive, i.e.
+      // the hints is scrolling via "inertia"
+      game.hintsScroll -= game.hintsScrollSpeed;
+      game.hintsScrollSpeed *= 0.97;
+      if (Math.abs(game.hintsScrollSpeed) < 0.1) {
+        game.hintsScrollSpeed = 0;
+      }
+      window.requestAnimationFrame((time) => main(time, game));
+    } else if (game.hintsUserIsScrolling) {
+      //game.hintsUserIsScrolling = false;
+      //window.requestAnimationFrame((time) => main(time, game));
+    }
+
+    // Restrict scrolling
+    const maxScrollHeight = Math.max(0, game.hintsHeight - game.height);
+    if (game.hintsScroll < 0) {
+      // No need to scroll up
+      game.hintsScroll = 0;
+      game.hintsScrollSpeed = 0;
+    } else if (game.hintsScroll > maxScrollHeight) {
+      // No need to bring the end of the list above the bottom
+      game.hintsScroll = maxScrollHeight;
+      game.hintsScrollSpeed = 0;
+    }
+
+    hintsY -= game.hintsScroll;
+
+    const remainingPangrams = game.hintsPuzzle.pangrams - game.hintsFound.pangrams;
+    let hintsPangramText = "";
+    if (remainingPangrams === 0) {
+      hintsPangramText = `You found all the pangrams! There were ${game.hintsPuzzle.pangrams} in all.`;
+    } else {
+      if (remainingPangrams === 1) {
+        hintsPangramText = "There's one more pangram";
+      } else {
+        hintsPangramText = `There are ${remainingPangrams} more pangrams`;
+      }
+      if (game.hintsPuzzle.pangrams === 1) {
+        hintsPangramText += "and that's the only one."
+      } else {
+        hintsPangramText += `, out of ${game.hintsPuzzle.pangrams} pangrams overall.`;
+      }
+      if (game.hintsFound.pangrams === 0) {
+        hintsPangramText += " You haven't found any yet 😞.";
+      }
+    }
+    game.ctx.font = `${SIZES.tiny(game)}px ${FONTS.default}`
+    const hintsPangramTextHeight = wrapText(game.ctx, hintsPangramText, menuBarPadding, hintsY, game.width - menuBarPadding * 2);
+    hintsY += hintsPangramTextHeight + SIZES.small(game);
+
+    const cellSize = SIZES.medium(game);
+
+    game.ctx.fillStyle = COLORS.black;
+    game.ctx.textAlign = "left";
+    game.ctx.textBaseline = "top";
+    const remainingWordsHeader = "Remaining words";
+    game.ctx.font = `bold ${SIZES.small(game)}px ${FONTS.word}`
+    game.ctx.fillText(remainingWordsHeader, menuBarPadding, hintsY);
+    hintsY += getTextHeight(game.ctx, remainingWordsHeader) - cellSize / 2 + SIZES.teeny(game);
+
+    const tableY = hintsY;
+    game.ctx.font = `${SIZES.tiny(game)}px ${FONTS.word}`
+    game.ctx.textAlign = "center";
+    game.ctx.textBaseline = "middle";
+    const letters = [...game.puzzle.letters].sort();
+
+    game.ctx.lineWidth = 2;
+    game.ctx.strokeStyle = COLORS.gray;
+    game.ctx.fillStyle = COLORS.black;
+    game.ctx.beginPath();
+
+    const lengthsSet: Set<number> = new Set();
+    for (const letterLengthList of Array.from(game.hintsPuzzle.lengths.values())) {
+      letterLengthList.forEach((c, i) => {
+        if (c > 0) {
+          lengthsSet.add(i);
+        }
+      });
+    }
+    const lengths = [...lengthsSet].sort();
+    const lengthsTotals = Array(lengths.length).fill(0);
+    //const tableWidth = (lengths.length + 2) * cellSize;
+    const tableHeight = cellSize * (letters.length + 2);
+    const tableX = SIZES.small(game);
+    game.ctx.textBaseline = "top";
+    for (let j = 0; j < lengths.length; j++) {
+      game.ctx.fillText(lengths[j].toString(),
+        tableX + cellSize / 2 + cellSize * (j + 1),
+        tableY + cellSize / 2);
+    }
+    game.ctx.fillText("To.",
+      tableX + cellSize / 2 + cellSize * (lengths.length + 1),
+      tableY + cellSize / 2);
+    game.ctx.beginPath();
+    game.ctx.moveTo(tableX, tableY + cellSize);
+    game.ctx.lineTo(tableX + (lengths.length + 2) * cellSize, tableY + cellSize);
+    game.ctx.stroke();
+    game.ctx.textBaseline = "middle";
+    let interactingWithBox: { letter: string, count: number } | null = null;
+    for (let i = 0; i < 7; i++) {
+      const letter = letters[i].toLowerCase();
+      game.ctx.font = `${SIZES.tiny(game)}px ${FONTS.word}`
+      game.ctx.fillText(letter.toUpperCase(),
+        tableX + cellSize / 2,
+        tableY + cellSize / 2 + cellSize * (i + 1));
+
+      const puzzleLengths = game.hintsPuzzle.lengths.get(letter) ?? [];
+      const foundLengths = game.hintsFound.lengths.get(letter) ?? [];
+      game.ctx.font = `bold ${SIZES.tiny(game)}px ${FONTS.word}`
+      lengths.forEach((length, j) => {
+        const count = (puzzleLengths[length] - (foundLengths[length] ?? 0)) ?? 0;
+        lengthsTotals[j] += count;
+        if (count > 0) {
+          game.ctx.beginPath();
+          game.ctx.roundRect(tableX + 1 + cellSize * (j + 1), tableY + 2 + cellSize * (i + 1), cellSize - 2, cellSize - 4, SIZES.teeny(game));
+          // Detect interaction
+          if (game.ctx.isPointInPath(game.mouseX, game.mouseY)) {
+            interactingWithBox = { letter, count };
+            game.ctx.fillStyle = COLORS.darkyellow;
+          } else {
+            game.ctx.fillStyle = COLORS.yellow;
+          }
+          game.ctx.fill();
+          game.ctx.fillStyle = COLORS.black;
+          game.ctx.fillText((count).toString(),
+            tableX + cellSize / 2 + cellSize * (j + 1),
+            tableY + cellSize / 2 + cellSize * (i + 1));
+        }
+      });
+
+      game.ctx.font = `${SIZES.tiny(game)}px ${FONTS.word}`
+      const total = puzzleLengths.reduce((sum, c) => sum + c, 0)
+        - foundLengths.reduce((sum, c) => sum + c, 0);
+      game.ctx.fillText((total || "").toString(),
+        tableX + cellSize / 2 + cellSize * (lengths.length + 1),
+        tableY + cellSize / 2 + cellSize * (i + 1));
+
+      game.ctx.beginPath();
+      game.ctx.moveTo(tableX, tableY + cellSize * (i + 2));
+      game.ctx.lineTo(tableX + (lengths.length + 2) * cellSize, tableY + cellSize * (i + 2));
+      game.ctx.stroke();
+    }
+    game.ctx.font = `${SIZES.tiny(game)}px ${FONTS.word}`
+    for (let j = -1; j < lengths.length; j++) {
+      game.ctx.fillText((j === -1 ? "To." : lengthsTotals[j]).toString(),
+        tableX + cellSize / 2 + cellSize * (j + 1),
+        tableY + cellSize / 2 + cellSize * (letters.length + 1));
+    }
+    const total = lengthsTotals.reduce((sum, c) => sum + c, 0);
+    game.ctx.fillText((total || "").toString(),
+      tableX + cellSize / 2 + cellSize * (lengths.length + 1),
+      tableY + cellSize / 2 + cellSize * (letters.length + 1));
+    game.ctx.beginPath();
+    game.ctx.moveTo(tableX, tableY + cellSize * (letters.length + 2));
+    game.ctx.lineTo(tableX + (lengths.length + 2) * cellSize, tableY + cellSize * (letters.length + 2));
+    game.ctx.stroke();
+
+    hintsY += tableHeight + SIZES.small(game);
+
+    game.ctx.fillStyle = COLORS.black;
+    game.ctx.textAlign = "left";
+    game.ctx.textBaseline = "top";
+    const remainingStartsHeader = "Remaining starts";
+    game.ctx.font = `bold ${SIZES.small(game)}px ${FONTS.word}`
+    game.ctx.fillText(remainingStartsHeader, menuBarPadding, hintsY);
+    hintsY += getTextHeight(game.ctx, remainingStartsHeader) + SIZES.teeny(game);
+
+    game.ctx.textAlign = "center";
+    game.ctx.textBaseline = "middle";
+    const startsX = SIZES.small(game);
+    let firstLetter = letters[0].toLowerCase();
+    let j = 0;
+    for (const [start, puzzleCount] of game.hintsPuzzle.starts.entries()) {
+      const foundCount = game.hintsFound.starts.get(start);
+      const count = puzzleCount - (foundCount ?? 0);
+      // Each letter gets its own row of starts
+      if (firstLetter !== removeAccents(start[0])) {
+        hintsY += cellSize + SIZES.tiny(game);
+        firstLetter = removeAccents(start[0]);
+        j = 0;
+      }
+
+      // Gray border unifying the start and the count
+      game.ctx.beginPath();
+      game.ctx.moveTo(startsX + SIZES.teeny(game) + cellSize * j, hintsY + cellSize);
+      game.ctx.lineTo(startsX + cellSize * (j + 2), hintsY + cellSize);
+      game.ctx.strokeStyle = COLORS.gray;
+      game.ctx.stroke();
+      // Display the start
+      game.ctx.font = `${SIZES.tiny(game)}px ${FONTS.word}`
+      game.ctx.fillText(start.toUpperCase(),
+        startsX + cellSize / 2 + cellSize * j,
+        hintsY + cellSize / 2);
+      // Display the count in the an interactive yellow box
+      game.ctx.beginPath();
+      game.ctx.roundRect(startsX + 1 + cellSize * (j + 1),
+        hintsY + 2,
+        cellSize - 2,
+        cellSize - 4,
+        SIZES.teeny(game));
+      // Detect interaction
+      if (game.ctx.isPointInPath(game.mouseX, game.mouseY)) {
+        interactingWithBox = { letter: start, count };
+        game.ctx.fillStyle = COLORS.darkyellow;
+      } else {
+        game.ctx.fillStyle = COLORS.yellow;
+      }
+      game.ctx.fill();
+      game.ctx.fillStyle = COLORS.black;
+      game.ctx.font = `bold ${SIZES.tiny(game)}px ${FONTS.word}`
+      game.ctx.fillText(count.toString(),
+        startsX + cellSize / 2 + cellSize * (j + 1),
+        hintsY + cellSize / 2);
+
+      j += 2;
+    }
+    hintsY += 2 * (cellSize + SIZES.tiny(game)) + SIZES.small(game);
+
+    game.hintsHeight = hintsY + 2 * SIZES.big(game);
+
+    if (interactingWithBox != null) {
+      // When interacting with a box, show a little info message over the hints
+
+      const interactiveHeight = SIZES.big(game);
+      const interactiveY = game.height - interactiveHeight - SIZES.tiny(game);
+      const interactiveWidth = game.width - 2 * SIZES.big(game);
+      const interactiveX = game.width / 2 - interactiveWidth / 2;
+
+      game.ctx.beginPath();
+      game.ctx.roundRect(interactiveX, interactiveY, interactiveWidth, interactiveHeight, SIZES.teeny(game));
+      game.ctx.fillStyle = COLORS.white;
+      game.ctx.strokeStyle = COLORS.black;
+      game.ctx.lineWidth = 1;
+      game.ctx.fill();
+      game.ctx.stroke();
+
+      const { letter, count } = interactingWithBox;
+      const firstLine = `There ${count === 1 ? "is" : "are"} ${count} more word${count === 1 ? "" : "s"}`
+      const secondLine = `that start${count === 1 ? "s" : ""} with ${letter.toUpperCase()}.`;
+
+      game.ctx.fillStyle = COLORS.black;
+      game.ctx.font = `${SIZES.tiny(game)}px ${FONTS.default}`
+      game.ctx.textAlign = "center";
+
+      game.ctx.textBaseline = "bottom";
+      game.ctx.fillText(firstLine,
+        game.width / 2,
+        interactiveY + interactiveHeight / 2);
+      game.ctx.textBaseline = "top";
+      game.ctx.fillText(secondLine,
+        game.width / 2,
+        interactiveY + interactiveHeight / 2);
+    }
+
+    // Restore to remove clipping
+    game.ctx.restore();
   }
 }
 
@@ -576,6 +1012,15 @@ function submitWord(_time: DOMHighResTimeStamp, game: Game) {
         game.puzzle.found.unshift(word);
         score += scoreWord(word, game.puzzle.pangrams);
         count += 1;
+
+        // Hint tracking
+        if (isPangram(word, game.puzzle.pangrams)) {
+          game.hintsFound.pangrams += 1;
+        }
+        (game.hintsFound.lengths.get(word[0]) ?? [])[word.length] += 1;
+        const start = word.substring(0, 2);
+        const numStarts = game.hintsFound.starts.get(start) ?? 0;
+        game.hintsFound.starts.set(start, numStarts + 1);
       }
       game.puzzle.score += score;
       game.wordMessage = `+${score / count}${count > 1 ? ` x${count}` : ""}`;
@@ -783,8 +1228,7 @@ function wordlist(time: DOMHighResTimeStamp, game: Game) {
     game.ctx.clip();
 
     game.ctx.font = `bold ${SIZES.tiny(game)}px ${FONTS.default}`;
-    const textHeight = (game.ctx.measureText("A").fontBoundingBoxAscent
-      + game.ctx.measureText("A").fontBoundingBoxDescent) * 2;
+    const textHeight = getTextHeight(game.ctx, "A") * 2;
 
     // Scrolling inertia
     if (!game.wordlistUserIsScrolling && game.wordlistScrollSpeed !== 0) {
@@ -902,3 +1346,31 @@ function hexagon(ctx: CanvasRenderingContext2D, x: number, y: number, radius: nu
   }
 }
 
+/**
+ * Gets the height of the text as it would be rendered on the Canvas.
+ */
+function getTextHeight(ctx: CanvasRenderingContext2D, text: string): number {
+  return ctx.measureText(text).fontBoundingBoxAscent + ctx.measureText(text).fontBoundingBoxDescent;
+}
+
+function wrapText(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, width: number): number {
+  let height = 0;
+  let line = "";
+  const words = text.split(" ");
+  for (const word of words) {
+    // Add words to the line as long as the result fits within the width
+    if (ctx.measureText(line).width + ctx.measureText(`${word} `).width <= width) {
+      line += `${word} `;
+      continue;
+    }
+    // Write the current line
+    ctx.fillText(line, x, y + height);
+    // Start a new line with this word
+    height += getTextHeight(ctx, line);
+    line = word;
+  }
+  // Write whatever is left
+  ctx.fillText(line, x, y + height);
+  height += getTextHeight(ctx, line);
+  return height;
+}
