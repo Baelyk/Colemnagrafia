@@ -652,7 +652,7 @@ function hints(_time: DOMHighResTimeStamp, game: Game, menuBarY: number, menuBar
         hintsPangramText = `There are ${remainingPangrams} more pangrams`;
       }
       if (game.hintsPuzzle.pangrams === 1) {
-        hintsPangramText += "and that's the only one."
+        hintsPangramText += " and that's the only one."
       } else {
         hintsPangramText += `, out of ${game.hintsPuzzle.pangrams} pangrams overall.`;
       }
@@ -1367,7 +1367,7 @@ function wrapText(ctx: CanvasRenderingContext2D, text: string, x: number, y: num
     ctx.fillText(line, x, y + height);
     // Start a new line with this word
     height += getTextHeight(ctx, line);
-    line = word;
+    line = `${word} `;
   }
   // Write whatever is left
   ctx.fillText(line, x, y + height);
