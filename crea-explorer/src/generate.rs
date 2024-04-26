@@ -32,9 +32,13 @@ pub fn generate_words_and_pangrams() -> (HashSet<String>, Vec<String>) {
             // If this word is a lema and is valid, add its derivatives as well
             if word == lema {
                 if let Some(derivatives) = elementos_by_lema.get(&word) {
-                    derivatives.iter().for_each(|derivative| {
-                        words.insert(derivative.clone());
-                    });
+                    derivatives
+                        .iter()
+                        // Ensure the derivative is valid based just on the word
+                        .filter(|derivative| filter(derivative, None, None, usize::MAX, true).0)
+                        .for_each(|derivative| {
+                            words.insert(derivative.clone());
+                        });
                 }
             }
         });
@@ -50,14 +54,14 @@ pub fn generate_words_and_pangrams() -> (HashSet<String>, Vec<String>) {
 fn write_palabras_rs(words: HashSet<String>, pangrams: Vec<String>) {
     println!("Writing palabras.rs...");
     // Words
-    let mut palabras_rs = format!("pub const PALABRAS: [&'static str; {}] = [\n", words.len());
+    let mut palabras_rs = format!("pub const PALABRAS: &'static [&'static str; {}] = &[\n", words.len());
     words
         .iter()
         .for_each(|word| palabras_rs.push_str(&format!("    \"{}\",\n", word)));
     palabras_rs.push_str("];\n\n");
     // Pangrams
     palabras_rs.push_str(&format!(
-        "pub const PANGRAMS: [&'static str; {}] = [\n",
+        "pub const PANGRAMS: &'static [&'static str; {}] = &[\n",
         pangrams.len()
     ));
     pangrams
