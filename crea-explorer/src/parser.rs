@@ -81,6 +81,29 @@ pub fn parse_elementos() -> HashMap<String, ElementoRecord> {
     elementos
 }
 
+/// Parse the CREA elementos into a lema -> [list of elements] map
+pub fn parse_elementos_by_lema() -> HashMap<String, Vec<String>> {
+    println!("Parsing CREA elementos by lema...");
+    let mut elementos_by_lema: HashMap<String, Vec<String>> = HashMap::new();
+    let mut reader = csv::ReaderBuilder::new()
+        .delimiter(b'\t')
+        .from_path("crea_elementos.txt")
+        .expect("Unable to read crea_elementos.txt");
+    reader
+        .deserialize::<ElementoRecord>()
+        .filter_map(|record| record.ok())
+        .for_each(|(word, lema, _, _, _, _)| {
+            elementos_by_lema
+                .entry(lema)
+                .and_modify(|list| {
+                    list.push(word.clone());
+                })
+                .or_insert(vec![word.clone()]);
+        });
+    println!("Found {} elementos lemas", elementos_by_lema.len());
+    elementos_by_lema
+}
+
 /// Parse the CREA formas ortograficas
 pub fn parse_formas() -> HashMap<String, FormaRecord> {
     println!("Parsing CREA formas ortograficas...");

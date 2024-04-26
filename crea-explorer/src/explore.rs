@@ -1,8 +1,11 @@
+use std::collections::HashSet;
+
 use crate::{filter, parser};
 use inquire::{InquireError, Text};
 
 pub fn explore() {
     let elementos = parser::parse_elementos();
+    let elementos_by_lema = parser::parse_elementos_by_lema();
     let formas = parser::parse_formas();
     let lemas = parser::parse_lemas();
 
@@ -35,6 +38,22 @@ pub fn explore() {
             .0
             {
                 println!("\tValid");
+            }
+            if let Some(elementos_with_this_lema) = elementos_by_lema.get(&elemento.1) {
+                let validateds: HashSet<&String> = elementos_with_this_lema
+                    .iter()
+                    .filter(|word| crate::filter(word, None, None, usize::MAX, true).0)
+                    .collect();
+                if elemento.0 == elemento.1 {
+                    print!("Elementos by lema: ({}) ", validateds.len());
+                    validateds.iter().for_each(|word| print!("{}, ", word));
+                    println!("");
+                } else if validateds.contains(&elemento.0) {
+                    if let Some(origin) = elementos.get(&elemento.1) {
+                        println!("Elementos by lema: {} from {:?}", elemento.0, origin);
+                        println!("\tValid");
+                    }
+                }
             }
         }
 

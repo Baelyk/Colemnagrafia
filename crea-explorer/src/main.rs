@@ -4,6 +4,7 @@ use std::collections::HashSet;
 use unidecode::unidecode;
 
 mod explore;
+mod frequency;
 mod generate;
 mod parser;
 
@@ -20,6 +21,14 @@ enum Command {
     Explore,
     /// Generate palabras.rs
     Generate,
+    /// View words omitted by a minimum frequency
+    Frequency {
+        /// Minimum frequency
+        freq: usize,
+        /// Number of words to display
+        #[arg(default_value_t = 10)]
+        words: usize,
+    },
 }
 
 fn main() {
@@ -28,6 +37,7 @@ fn main() {
     match args.command {
         Command::Explore => explore::explore(),
         Command::Generate => generate::generate(),
+        Command::Frequency { freq, words } => frequency::frequency(freq, words),
     }
 }
 
