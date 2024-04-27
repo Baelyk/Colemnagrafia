@@ -70,13 +70,6 @@ pub fn filter(
         };
         println!("\tForeign");
         valid = false;
-    } else if category == Some(Categoria::M) {
-        // No numerals
-        if short_circuit {
-            return (false, common_pangram);
-        };
-        println!("\tNumeral");
-        valid = false;
     } else if category == Some(Categoria::Y) {
         // No puntaciones
         if short_circuit {
