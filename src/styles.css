@@ -15,6 +15,9 @@ html, body {margin: 0; height: 100%; overflow: hidden}
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   -webkit-text-size-adjust: 100%;
+
+  /* Prevent the browser from intercepting touches, which breaks scrolling */
+  touch-action: none;
 }
 
 @media (prefers-color-scheme: dark) {

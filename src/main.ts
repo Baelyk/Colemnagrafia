@@ -789,8 +789,15 @@ function hints(_time: DOMHighResTimeStamp, game: Game, menuBarY: number, menuBar
     for (const [start, puzzleCount] of game.hintsPuzzle.starts.entries()) {
       const foundCount = game.hintsFound.starts.get(start);
       const count = puzzleCount - (foundCount ?? 0);
-      // Each letter gets its own row of starts
-      if (firstLetter !== removeAccents(start[0])) {
+
+      // Skip starts that have been found
+      if (count === 0) {
+        continue;
+      }
+
+      // Start a new line if this one it would overflow
+      const lineWidth = startsX + cellSize * (j + 2);
+      if (lineWidth > game.width - SIZES.small(game)) {
         hintsY += cellSize + SIZES.tiny(game);
         firstLetter = removeAccents(start[0]);
         j = 0;
@@ -830,9 +837,12 @@ function hints(_time: DOMHighResTimeStamp, game: Game, menuBarY: number, menuBar
 
       j += 2;
     }
-    hintsY += 2 * (cellSize + SIZES.tiny(game)) + SIZES.small(game);
+    // Account for the last row and a little padding
+    hintsY += cellSize + SIZES.tiny(game) + SIZES.small(game);
 
-    game.hintsHeight = hintsY + 2 * SIZES.big(game);
+    // Save the height of the hints for scrolling limits (add the scrolling since
+    // hintsY depends on it)
+    game.hintsHeight = hintsY + game.hintsScroll;
 
     if (interactingWithBox != null) {
       // When interacting with a box, show a little info message over the hints
