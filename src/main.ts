@@ -33,7 +33,12 @@ interface HasSize {
   height: number;
 }
 const SIZES = {
-  smallestDimension: (size: HasSize) => Math.min(size.height, size.width),
+  smallestDimension: (size: HasSize) => {
+    if (size.height / size.width <= 1.75) {
+      return size.height / 1.75;
+    }
+    return Math.min(size.width, size.height);
+  },
   big: (size: HasSize) => SIZES.smallestDimension(size) / 7,
   medium: (size: HasSize) => SIZES.smallestDimension(size) / 10,
   small: (size: HasSize) => SIZES.smallestDimension(size) / 15,
@@ -49,6 +54,7 @@ interface Game {
   height: number;
   scaling: number;
   ctx: CanvasRenderingContext2D;
+  tagName: "game";
 
   errorText: string | null;
 
@@ -142,10 +148,7 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   window.addEventListener("resize", () => {
     if (DEBUG.eventLogging) console.log("resize");
-    game.width = window.innerWidth;
-    game.height = window.innerHeight;
-    game.scaling = window.devicePixelRatio;
-    resizeCanvas(game.ctx.canvas, game.width, game.height);
+    resizeCanvas(game, window.innerWidth, window.innerHeight);
 
     window.requestAnimationFrame((time) => main(time, game));
   });
@@ -199,19 +202,42 @@ window.addEventListener("DOMContentLoaded", async () => {
   window.requestAnimationFrame((time) => main(time, game));
 });
 
-function resizeCanvas(canvas: HTMLCanvasElement, width: number, height: number) {
-  const ratio = window.devicePixelRatio;
-  canvas.style.width = `${width}px`;
-  canvas.style.height = `${height}px`;
-  canvas.width = width * ratio;
-  canvas.height = height * ratio;
+function resizeCanvas(gameOrCanvas: Game | HTMLCanvasElement, width: number, height: number): { scaling: number, width: number, height: number } {
+  const scaling = window.devicePixelRatio;
 
-  const ctx = canvas.getContext("2d");
-  if (ctx == null) {
-    console.error("Unable to get canvas context");
-    return;
+  if (gameOrCanvas.tagName === "game") {
+    const game = gameOrCanvas as Game;
+
+    game.width = width;
+    game.height = height;
+    game.scaling = scaling;
+
+    game.ctx.canvas.style.width = `${width}px`;
+    game.ctx.canvas.style.height = `${height}px`;
+    game.ctx.canvas.width = width * scaling;
+    game.ctx.canvas.height = height * scaling;
+
+    game.ctx.scale(scaling, scaling);
+  } else {
+    const canvas = gameOrCanvas as HTMLCanvasElement;
+
+    canvas.style.width = `${width}px`;
+    canvas.style.height = `${height}px`;
+    canvas.width = width * scaling;
+    canvas.height = height * scaling;
+
+    const ctx = canvas.getContext("2d");
+    if (ctx == null) {
+      throw new Error("Unable to get canvas context");
+    }
+    ctx.scale(scaling, scaling);
   }
-  ctx.scale(ratio, ratio);
+
+  return {
+    scaling,
+    width,
+    height
+  }
 }
 
 function init(): Game {
@@ -227,10 +253,7 @@ function init(): Game {
     throw new Error("Unable to get canvas context");
   }
 
-  const scaling = window.devicePixelRatio;
-  const width = window.innerWidth;
-  const height = window.innerHeight;
-  resizeCanvas(canvas, width, height);
+  const { scaling, width, height } = resizeCanvas(canvas, window.innerWidth, window.innerHeight);
 
   const puzzle: Puzzle = {
     letters: [],
@@ -259,6 +282,7 @@ function init(): Game {
     height,
     scaling,
     ctx,
+    tagName: "game",
 
     errorText: null,
 
@@ -424,9 +448,9 @@ async function loadPuzzleFromWebStorage(_day: string): Promise<{ puzzle: Puzzle,
 async function loadPuzzle(day: string): Promise<{ puzzle: Puzzle, hintsPuzzle: HintsData, hintsFound: HintsData } | null> {
   if (window.__TAURI__) {
     return await loadPuzzleFromStore(day);
-  } else {
-    return await loadPuzzleFromWebStorage(day);
   }
+
+  return await loadPuzzleFromWebStorage(day);
 }
 
 async function createDailyPuzzleFromFile(_day: string): Promise<Puzzle | null> {
@@ -481,9 +505,9 @@ async function createDailyPuzzleFromTauri(day: string): Promise<Puzzle | null> {
 async function createDailyPuzzle(day: string): Promise<Puzzle | null> {
   if (window.__TAURI__) {
     return await createDailyPuzzleFromTauri(day);
-  } else {
-    return await createDailyPuzzleFromFile(day);
   }
+
+  return await createDailyPuzzleFromFile(day);
 }
 
 async function getPuzzle(game: Game, forceNewPuzzle?: "daily" | "new") {
