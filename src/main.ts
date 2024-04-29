@@ -456,15 +456,21 @@ async function loadPuzzle(day: string): Promise<{ puzzle: Puzzle, hintsPuzzle: H
 
 async function createDailyPuzzleFromFile(_day: string): Promise<Puzzle | null> {
   console.log("Getting puzzle from file");
-  const puzzle = puzzles;
-  //const request = new Request(url);
-  //const response = await fetch(request);
-  //const puzzle = await response.json() as PuzzleData;
+  const puzzlesDay = puzzles.day;
+  const today = Date.now() + Date.now() % (60 * 60 * 24);
+  let index = (today - puzzlesDay) % (60 * 60 * 24);
+  if (index < 0 || index > puzzles.dailies.length) {
+    console.warn(`Daily puzzle index was ${index}, but setting to 0`);
+    index = 0;
+  }
+  console.log(`\tGetting daily puzzle ${index}`);
+  const puzzle = puzzles.dailies[index];
   console.log(puzzle);
 
   return {
     letters: puzzle.letters.map(l => l.toUpperCase()),
-    words: puzzle.words,
+    // TypeScripts inferred type for words is wrong because it is intersection them, which means sometimes the map can have a key whose value is undefined, but this is not the case
+    words: puzzle.words as unknown as WordMap,
     pangrams: puzzle.pangrams,
     maxScore: Object.values(puzzle.words).flat().reduce(
       (sum, word) => sum + scoreWord(word, puzzle.pangrams), 0),

@@ -1,8 +1,4 @@
 use puzzles::Puzzle;
-use rand::{seq::SliceRandom, SeedableRng};
-use rand_chacha::ChaCha8Rng;
-use std::collections::{HashMap, HashSet};
-use unidecode::unidecode;
 
 mod palabras;
 pub mod puzzles;
@@ -47,5 +43,8 @@ async fn create_puzzle_from_letters(letters: Vec<char>) -> Result<Puzzle, Error>
 
 #[tauri::command]
 async fn daily_puzzle() -> Result<Puzzle, Error> {
-    puzzles::daily_puzzle()
+    match puzzles::daily_puzzles(0) {
+        Ok(puzzles) => Ok(puzzles[0].clone()),
+        Err(error) => Err(error),
+    }
 }
