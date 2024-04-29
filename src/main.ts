@@ -871,7 +871,7 @@ function hints(_time: DOMHighResTimeStamp, game: Game, menuBarY: number, menuBar
       const foundLengths = game.hintsFound.lengths.get(letter) ?? [];
       game.ctx.font = `bold ${SIZES.tiny(game)}px ${FONTS.word}`
       lengths.forEach((length, j) => {
-        const count = (puzzleLengths[length] - (foundLengths[length] ?? 0)) ?? 0;
+        const count = puzzleLengths[length] - (foundLengths[length] ?? 0);
         lengthsTotals[j] += count;
         if (count > 0) {
           game.ctx.beginPath();
@@ -931,7 +931,6 @@ function hints(_time: DOMHighResTimeStamp, game: Game, menuBarY: number, menuBar
     game.ctx.textAlign = "center";
     game.ctx.textBaseline = "middle";
     const startsX = SIZES.small(game);
-    let firstLetter = letters[0].toLowerCase();
     let j = 0;
     for (const [start, puzzleCount] of game.hintsPuzzle.starts.entries()) {
       const foundCount = game.hintsFound.starts.get(start);
@@ -946,7 +945,6 @@ function hints(_time: DOMHighResTimeStamp, game: Game, menuBarY: number, menuBar
       const lineWidth = startsX + cellSize * (j + 2);
       if (lineWidth > game.width - SIZES.small(game)) {
         hintsY += cellSize + SIZES.tiny(game);
-        firstLetter = removeAccents(start[0]);
         j = 0;
       }
 
