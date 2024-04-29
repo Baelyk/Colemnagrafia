@@ -129,21 +129,12 @@ window.addEventListener("DOMContentLoaded", async () => {
     game.errorText = JSON.stringify(error);
   }
 
-
-  window.addEventListener("click", (event) => {
-    if (DEBUG.eventLogging) console.log("click");
+  window.addEventListener("pointerdown", (event) => {
+    if (DEBUG.eventLogging) console.log("pointerdown");
     game.mouseX = event.clientX * game.scaling;
     game.mouseY = event.clientY * game.scaling;
     game.mouseDown = true;
     game.wordMessage = null;
-    window.requestAnimationFrame((time) => main(time, game));
-  });
-
-  window.addEventListener("mousemove", (event) => {
-    if (DEBUG.eventLogging) console.log("mouse");
-    game.mouseX = event.clientX * game.scaling;
-    game.mouseY = event.clientY * game.scaling;
-    game.mouseDown = false;
     window.requestAnimationFrame((time) => main(time, game));
   });
 
@@ -169,10 +160,21 @@ window.addEventListener("DOMContentLoaded", async () => {
   window.addEventListener("pointermove", (event) => {
     if (DEBUG.eventLogging) console.log("pointermove");
 
-    if (event.pointerType === "mouse" && event.pressure < 0.5) {
-      return;
+    // Update the game's mouseX and Y
+    game.mouseX = event.clientX * game.scaling;
+    game.mouseY = event.clientY * game.scaling;
+    // If the pointer is moving, its not down
+    game.mouseDown = false;
+    window.requestAnimationFrame((time) => main(time, game));
+
+    if (event.pointerType === "mouse") {
+      // Now, return if the mouse button is not down
+      if (event.pressure < 0.5) {
+        return;
+      }
     }
 
+    // Handle scrolling
     if (game.wordlistIsOpen) {
       game.wordlistScroll -= event.movementY;
       game.wordlistScrollSpeed = event.movementY;
@@ -183,8 +185,6 @@ window.addEventListener("DOMContentLoaded", async () => {
       game.hintsScrollSpeed = event.movementY;
       game.hintsUserIsScrolling = true;
     }
-
-    window.requestAnimationFrame((time) => main(time, game));
   });
 
   window.addEventListener("pointerup", (_event) => {
