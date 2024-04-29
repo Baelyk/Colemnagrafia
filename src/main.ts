@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { Store } from '@tauri-apps/plugin-store';
+import puzzles from "./assets/puzzles.json";
 
 declare global {
   interface Window {
@@ -454,10 +455,11 @@ async function loadPuzzle(day: string): Promise<{ puzzle: Puzzle, hintsPuzzle: H
 }
 
 async function createDailyPuzzleFromFile(_day: string): Promise<Puzzle | null> {
-  const url = "puzzles.json";
-  const request = new Request(url);
-  const response = await fetch(request);
-  const puzzle = await response.json() as PuzzleData;
+  console.log("Getting puzzle from file");
+  const puzzle = puzzles;
+  //const request = new Request(url);
+  //const response = await fetch(request);
+  //const puzzle = await response.json() as PuzzleData;
   console.log(puzzle);
 
   return {
