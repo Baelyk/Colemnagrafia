@@ -6,6 +6,7 @@ const mobile = !!/android|ios/.exec(process.env.TAURI_ENV_PLATFORM);
 
 // https://vitejs.dev/config/
 export default defineConfig(async () => ({
+  base: "spelling-bee-clone",
 
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
   //
@@ -18,10 +19,10 @@ export default defineConfig(async () => ({
     host: mobile ? "0.0.0.0" : false,
     hmr: mobile
       ? {
-          protocol: "ws",
-          host: await internalIpV4(),
-          port: 1421,
-        }
+        protocol: "ws",
+        host: await internalIpV4(),
+        port: 1421,
+      }
       : undefined,
     watch: {
       // 3. tell vite to ignore watching `src-tauri`
