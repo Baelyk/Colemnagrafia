@@ -25,4 +25,3 @@ dist-ssr
 
 *.txt
 src-tauri/gen
-puzzles.json
