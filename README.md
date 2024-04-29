@@ -1,7 +1,8 @@
-# Tauri + Vanilla TS
+# Spelling Bee Clone for Spanish
 
-This template should help get you started developing with Tauri in vanilla HTML, CSS and Typescript.
+A simple clone of the NYT Spelling Bee with puzzles generated in Spanish.
+Play [here](https://baelyk.github.io/spelling-bee-clone/).
 
-## Recommended IDE Setup
+![iOS main](.github/ios_main.png)
+![iOS hints](.github/ios_hints.png)
 
-- [VS Code](https://code.visualstudio.com/) + [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode) + [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer)
