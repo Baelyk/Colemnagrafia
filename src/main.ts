@@ -939,7 +939,9 @@ function hints(_time: DOMHighResTimeStamp, game: Game, menuBarY: number, menuBar
     game.ctx.textBaseline = "middle";
     const startsX = SIZES.small(game);
     let j = 0;
-    for (const [start, puzzleCount] of game.hintsPuzzle.starts.entries()) {
+    const starts = Array.from(game.hintsPuzzle.starts.entries());
+    starts.sort(([a, _], [b, __]) => a.localeCompare(b));
+    for (const [start, puzzleCount] of starts) {
       const foundCount = game.hintsFound.starts.get(start);
       const count = puzzleCount - (foundCount ?? 0);
 
