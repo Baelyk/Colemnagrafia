@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { Store } from '@tauri-apps/plugin-store';
-import puzzles from "./assets/puzzles.json";
+import _puzzles from "./assets/puzzles.json";
+const puzzles = _puzzles as unknown as { [key in string]?: Puzzle };
 
 declare global {
   interface Window {
@@ -456,16 +457,14 @@ async function loadPuzzle(day: string): Promise<{ puzzle: Puzzle, hintsPuzzle: H
 
 async function createDailyPuzzleFromFile(_day: string): Promise<Puzzle | null> {
   console.log("Getting puzzle from file");
-  const puzzlesDay = puzzles.day;
-  const today = Date.now() + Date.now() % (60 * 60 * 24);
-  let index = (today - puzzlesDay) % (60 * 60 * 24);
-  if (index < 0 || index > puzzles.dailies.length) {
-    console.warn(`Daily puzzle index was ${index}, but setting to 0`);
-    index = 0;
+  const today = Math.floor(Date.now() / (1000 * 60 * 60 * 24)).toString();
+  console.log(`\tGetting daily puzzle ${today}`);
+  const puzzle = puzzles[today];
+  if (puzzle == null) {
+    console.warn(`Unable to get daily puzzle ${today}`);
+    return null;
   }
-  console.log(`\tGetting daily puzzle ${index}`);
-  const puzzle = puzzles.dailies[index];
-  console.log(puzzle);
+  console.debug(puzzle);
 
   return {
     letters: puzzle.letters.map(l => l.toUpperCase()),

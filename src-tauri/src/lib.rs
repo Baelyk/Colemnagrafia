@@ -2,6 +2,7 @@ use puzzles::Puzzle;
 
 mod palabras;
 pub mod puzzles;
+pub mod utils;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -43,8 +44,5 @@ async fn create_puzzle_from_letters(letters: Vec<char>) -> Result<Puzzle, Error>
 
 #[tauri::command]
 async fn daily_puzzle() -> Result<Puzzle, Error> {
-    match puzzles::daily_puzzles(0) {
-        Ok(puzzles) => Ok(puzzles[0].clone()),
-        Err(error) => Err(error),
-    }
+    puzzles::daily_puzzle(utils::today()?)
 }

@@ -1,23 +1,20 @@
-use serde::Serialize;
-use spelling_bee_clone_lib::{puzzles::daily_puzzles, puzzles::Puzzle, Error};
+use std::collections::HashMap;
 
-#[derive(Serialize)]
-struct Puzzles {
-    day: u64,
-    dailies: Vec<Puzzle>,
-}
+use spelling_bee_clone_lib::{puzzles::daily_puzzle, puzzles::Puzzle, utils, Error};
+
+type Puzzles = HashMap<u64, Puzzle>;
 
 fn main() -> Result<(), Error> {
-    let secs = std::time::SystemTime::now()
-        .duration_since(std::time::SystemTime::UNIX_EPOCH)
-        .or(Err(Error::Message(
-            "Error getting duration since Unix epoch".into(),
-        )))?
-        .as_secs();
-    let day = secs.next_multiple_of(60 * 60 * 24);
-    let dailies = daily_puzzles(10)?;
+    let mut puzzles: Puzzles = HashMap::new();
+    let today = utils::today()?;
+    println!("Generating 10 puzzles from today ({})", today);
 
-    let puzzles = Puzzles { day, dailies };
+    for i in 0..10 {
+        if let Ok(puzzle) = daily_puzzle(today + i) {
+            puzzles.insert(today + i, puzzle);
+        }
+    }
+
     let puzzles = serde_json::to_string(&puzzles)?;
     std::fs::write("puzzles.json", puzzles).expect("Unable to write puzzles.json");
 

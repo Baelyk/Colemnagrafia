@@ -92,68 +92,55 @@ pub fn create_puzzle_from_letters(letters: Vec<char>) -> Result<Puzzle, Error> {
     })
 }
 
-pub fn daily_puzzles(num: u64) -> Result<Vec<Puzzle>, Error> {
-    let mut puzzles = vec![];
+pub fn daily_puzzle(day: u64) -> Result<Puzzle, Error> {
+    println!("Creating daily puzzle for day {}", day);
 
-    for i in 0..num {
-        // Create a random number generator seeded by today's seconds since the Unix
-        // epoch
-        let secs = std::time::SystemTime::now()
-            .duration_since(std::time::SystemTime::UNIX_EPOCH)
-            .or(Err(Error::Message(
-                "Error getting duration since Unix epoch".into(),
-            )))?
-            .as_secs();
-        let seed = secs.next_multiple_of(60 * 60 * 24) + 60 * 60 * 24 * i;
-        let mut rng = ChaCha8Rng::seed_from_u64(seed);
+    // Create a random number generator seeded by days since the epoch
+    let seed = day;
+    let mut rng = ChaCha8Rng::seed_from_u64(seed);
 
-        let all_pangrams = palabras::PANGRAMS;
+    let all_pangrams = palabras::PANGRAMS;
 
-        let mut pangram;
-        let mut letters: Vec<char>;
+    let mut pangram;
+    let mut letters: Vec<char>;
 
-        let mut tries = 0;
-        let mut puzzle;
+    let mut tries = 0;
+    let mut puzzle;
 
-        loop {
-            tries += 1;
+    loop {
+        tries += 1;
 
-            // Choose a random pangram
-            let Some(chosen_pangram) = all_pangrams.choose(&mut rng) else {
-                return Err(Error::Message("No pangrams to choose from".into()));
-            };
-            pangram = chosen_pangram;
+        // Choose a random pangram
+        let Some(chosen_pangram) = all_pangrams.choose(&mut rng) else {
+            return Err(Error::Message("No pangrams to choose from".into()));
+        };
+        pangram = chosen_pangram;
 
-            // Extract the unique letters from the pangram and shuffle to pick the
-            // center letter. Sort first so that the seedable RNG's determinism is
-            // not affect by the HashSet
-            let letter_set: HashSet<char> = HashSet::from_iter(unidecode(pangram).chars());
-            letters = letter_set.iter().copied().collect();
-            letters.sort();
-            letters.shuffle(&mut rng);
+        // Extract the unique letters from the pangram and shuffle to pick the
+        // center letter. Sort first so that the seedable RNG's determinism is
+        // not affect by the HashSet
+        let letter_set: HashSet<char> = HashSet::from_iter(unidecode(pangram).chars());
+        letters = letter_set.iter().copied().collect();
+        letters.sort();
+        letters.shuffle(&mut rng);
 
-            println!("Trying {:?} from {}", letters, pangram);
+        println!("Trying {:?} from {}", letters, pangram);
 
-            // Try to create the puzzle, and keep try again if these letters make a
-            // bad puzzle
-            puzzle = create_puzzle_from_letters(letters);
-            match puzzle {
-                Ok(puzzle) => {
-                    puzzles.push(puzzle);
-                    break;
-                }
-                Err(Error::BadPuzzle(message)) => println!("Bad puzzle: {}", message),
-                Err(_) => break,
-            };
+        // Try to create the puzzle, and keep try again if these letters make a
+        // bad puzzle
+        puzzle = create_puzzle_from_letters(letters);
+        match puzzle {
+            Err(Error::BadPuzzle(message)) => println!("Bad puzzle: {}", message),
+            _ => break,
+        };
 
-            if tries > 100 {
-                return Err(Error::Message(
-                    "Too many tries, failed to find puzzle".into(),
-                ));
-            }
+        if tries > 100 {
+            return Err(Error::Message(
+                "Too many tries, failed to find puzzle".into(),
+            ));
         }
-        println!("Took {} tries to create a puzzle", tries);
     }
+    println!("Took {} tries to create a puzzle", tries);
 
-    Ok(puzzles)
+    puzzle
 }
