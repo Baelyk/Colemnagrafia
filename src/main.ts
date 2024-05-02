@@ -15,14 +15,17 @@ const DEBUG = {
   eventLogging: false,
 }
 
+interface HasDarkMode {
+  darkMode: boolean;
+}
 const COLORS = {
-  yellow: "gold",
-  darkyellow: "goldenrod",
-  black: "black",
-  gray: "lightgray",
-  darkgray: "darkgray",
-  red: "red",
-  white: "white",
+  fg: ({ darkMode }: HasDarkMode) => darkMode ? "white" : "black",
+  bg: ({ darkMode }: HasDarkMode) => darkMode ? "black" : "white",
+  yellow: ({ darkMode }: HasDarkMode) => darkMode ? "goldenrod" : "gold",
+  darkyellow: ({ darkMode }: HasDarkMode) => darkMode ? "gold" : "goldenrod",
+  gray: ({ darkMode }: HasDarkMode) => darkMode ? "gray" : "lightgray",
+  darkgray: ({ darkMode }: HasDarkMode) => darkMode ? "darkgray" : "darkgray",
+  red: ({ darkMode }: HasDarkMode) => darkMode ? "red" : "red",
 };
 
 const FONTS = {
@@ -57,6 +60,7 @@ interface Game {
   scaling: number;
   ctx: CanvasRenderingContext2D;
   tagName: "game";
+  darkMode: boolean;
 
   errorText: string | null;
 
@@ -213,6 +217,15 @@ window.addEventListener("DOMContentLoaded", async () => {
     window.requestAnimationFrame((time) => main(time, game));
   });
 
+  // Listen for dark mode preference changes
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
+    if (DEBUG.eventLogging) console.log("prefers-color-scheme");
+    game.darkMode = event.matches;
+    document.documentElement.style.removeProperty("background-color");
+
+    window.requestAnimationFrame((time) => main(time, game));
+  });
+
   window.requestAnimationFrame((time) => main(time, game));
 });
 
@@ -261,10 +274,15 @@ function init(): Game {
     console.error("Unable to get canvas");
     throw new Error("Unable to get canvas");
   }
-  const ctx = canvas.getContext("2d");
+  const ctx = canvas.getContext("2d", { alpha: false });
   if (ctx == null) {
     console.error("Unable to get canvas context");
     throw new Error("Unable to get canvas context");
+  }
+
+  let darkMode = false;
+  if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+    darkMode = true;
   }
 
   const { scaling, width, height } = resizeCanvas(canvas, window.innerWidth, window.innerHeight);
@@ -297,6 +315,7 @@ function init(): Game {
     scaling,
     ctx,
     tagName: "game",
+    darkMode,
 
     errorText: null,
 
@@ -578,7 +597,8 @@ async function restartPuzzle(game: Game) {
 }
 
 function main(time: DOMHighResTimeStamp, game: Game) {
-  game.ctx.clearRect(0, 0, game.width, game.height);
+  game.ctx.fillStyle = COLORS.bg(game);
+  game.ctx.fillRect(0, 0, game.width, game.height);
 
   if (game.errorText != null) {
     error(time, game);
@@ -616,7 +636,7 @@ function error(_time: DOMHighResTimeStamp, game: Game) {
   game.ctx.font = `bold ${SIZES.big(game)}px ${FONTS.default}`;
   game.ctx.textAlign = "left";
   game.ctx.textBaseline = "middle";
-  game.ctx.fillStyle = COLORS.black;
+  game.ctx.fillStyle = COLORS.fg(game);
 
   game.ctx.fillText("Error", SIZES.small(game), SIZES.small(game));
   game.ctx.font = `${SIZES.tiny(game)}px ${FONTS.default}`;
@@ -660,7 +680,7 @@ function menu(_time: DOMHighResTimeStamp, game: Game, menuY: number, menuWidth: 
     for (let i = 0; i < 3; i++) {
       game.ctx.roundRect(menuX, menuY + menuHamburgerHeight * 1.5 + 4 * i * menuHamburgerHeight, menuWidth, menuHamburgerHeight, SIZES.tiny(game));
     }
-    game.ctx.fillStyle = COLORS.black;
+    game.ctx.fillStyle = COLORS.fg(game);
     game.ctx.fill();
 
     // Detect interaction
@@ -692,13 +712,20 @@ function menu(_time: DOMHighResTimeStamp, game: Game, menuY: number, menuWidth: 
 
         window.requestAnimationFrame((time) => main(time, game));
       }],
-      ["Daily Puzzle", () => {
+      ["Check for new puzzle", () => {
         getPuzzle(game, "daily");
         game.menuOpen = false;
 
         window.requestAnimationFrame((time) => main(time, game));
       }],
-      ["New Puzzle", () => { }]
+      [`${game.darkMode ? "Light" : "Dark"} mode`, () => {
+        game.darkMode = !game.darkMode;
+        game.menuOpen = false;
+
+        document.documentElement.style.setProperty("background-color", COLORS.bg(game));
+
+        window.requestAnimationFrame((time) => main(time, game));
+      }]
     ];
 
     const menuY = game.height / 2 - menuOptions.length * menuRowHeight;
@@ -711,16 +738,16 @@ function menu(_time: DOMHighResTimeStamp, game: Game, menuY: number, menuWidth: 
 
         menuOptionAction();
 
-        game.ctx.fillStyle = COLORS.darkgray;
+        game.ctx.fillStyle = COLORS.darkgray(game);
         window.requestAnimationFrame((time) => main(time, game));
       } else {
-        game.ctx.fillStyle = COLORS.white;
+        game.ctx.fillStyle = COLORS.bg(game);
       }
       game.ctx.fill();
-      game.ctx.strokeStyle = COLORS.black;
+      game.ctx.strokeStyle = COLORS.fg(game);
       game.ctx.stroke();
 
-      game.ctx.fillStyle = COLORS.black;
+      game.ctx.fillStyle = COLORS.fg(game);
       game.ctx.fillText(menuOptionText, menuX + SIZES.small(game), menuY + menuButtonHeight / 2 + (menuRowHeight) * i);
     });
 
@@ -739,13 +766,13 @@ function hints(_time: DOMHighResTimeStamp, game: Game, menuBarY: number, menuBar
   const hintsY = menuBarY;
   game.ctx.beginPath();
   game.ctx.roundRect(hintsX, hintsY, menuHeight, menuHeight, SIZES.teeny(game));
-  game.ctx.strokeStyle = COLORS.black;
+  game.ctx.strokeStyle = COLORS.fg(game);
   if (game.hintsOpen) {
     game.ctx.lineWidth = 2;
-    game.ctx.fillStyle = COLORS.yellow;
+    game.ctx.fillStyle = COLORS.yellow(game);
   } else {
     game.ctx.lineWidth = 1;
-    game.ctx.fillStyle = COLORS.white;
+    game.ctx.fillStyle = COLORS.bg(game);
   }
   game.ctx.fill();
   game.ctx.stroke();
@@ -761,13 +788,13 @@ function hints(_time: DOMHighResTimeStamp, game: Game, menuBarY: number, menuBar
   game.ctx.font = `bold ${SIZES.tiny(game)}px ${FONTS.word}`
   game.ctx.textAlign = "center";
   game.ctx.textBaseline = "middle";
-  game.ctx.fillStyle = COLORS.black;
+  game.ctx.fillStyle = COLORS.fg(game);
   game.ctx.fillText("?", hintsX + menuHeight / 2, hintsY + menuHeight / 2);
 
   if (game.hintsOpen) {
     let hintsY = SIZES.teeny(game);
 
-    game.ctx.fillStyle = COLORS.black;
+    game.ctx.fillStyle = COLORS.fg(game);
     game.ctx.textAlign = "left";
     game.ctx.textBaseline = "top";
     const hintsHeader = "hints";
@@ -837,7 +864,7 @@ function hints(_time: DOMHighResTimeStamp, game: Game, menuBarY: number, menuBar
 
     const cellSize = SIZES.medium(game);
 
-    game.ctx.fillStyle = COLORS.black;
+    game.ctx.fillStyle = COLORS.fg(game);
     game.ctx.textAlign = "left";
     game.ctx.textBaseline = "top";
     const remainingWordsHeader = "Remaining words";
@@ -852,8 +879,8 @@ function hints(_time: DOMHighResTimeStamp, game: Game, menuBarY: number, menuBar
     const letters = [...game.puzzle.letters].sort();
 
     game.ctx.lineWidth = 2;
-    game.ctx.strokeStyle = COLORS.gray;
-    game.ctx.fillStyle = COLORS.black;
+    game.ctx.strokeStyle = COLORS.gray(game);
+    game.ctx.fillStyle = COLORS.fg(game);
     game.ctx.beginPath();
 
     const lengthsSet: Set<number> = new Set();
@@ -903,12 +930,12 @@ function hints(_time: DOMHighResTimeStamp, game: Game, menuBarY: number, menuBar
           // Detect interaction
           if (game.ctx.isPointInPath(game.mouseX, game.mouseY)) {
             interactingWithBox = { letter, count };
-            game.ctx.fillStyle = COLORS.darkyellow;
+            game.ctx.fillStyle = COLORS.darkyellow(game);
           } else {
-            game.ctx.fillStyle = COLORS.yellow;
+            game.ctx.fillStyle = COLORS.yellow(game);
           }
           game.ctx.fill();
-          game.ctx.fillStyle = COLORS.black;
+          game.ctx.fillStyle = COLORS.fg(game);
           game.ctx.fillText((count).toString(),
             tableX + cellSize / 2 + cellSize * (j + 1),
             tableY + cellSize / 2 + cellSize * (i + 1));
@@ -944,7 +971,7 @@ function hints(_time: DOMHighResTimeStamp, game: Game, menuBarY: number, menuBar
 
     hintsY += tableHeight + SIZES.small(game);
 
-    game.ctx.fillStyle = COLORS.black;
+    game.ctx.fillStyle = COLORS.fg(game);
     game.ctx.textAlign = "left";
     game.ctx.textBaseline = "top";
     const remainingStartsHeader = "Remaining starts";
@@ -978,7 +1005,7 @@ function hints(_time: DOMHighResTimeStamp, game: Game, menuBarY: number, menuBar
       game.ctx.beginPath();
       game.ctx.moveTo(startsX + SIZES.teeny(game) + cellSize * j, hintsY + cellSize);
       game.ctx.lineTo(startsX + cellSize * (j + 2), hintsY + cellSize);
-      game.ctx.strokeStyle = COLORS.gray;
+      game.ctx.strokeStyle = COLORS.gray(game);
       game.ctx.stroke();
       // Display the start
       game.ctx.font = `${SIZES.tiny(game)}px ${FONTS.word}`
@@ -995,12 +1022,12 @@ function hints(_time: DOMHighResTimeStamp, game: Game, menuBarY: number, menuBar
       // Detect interaction
       if (game.ctx.isPointInPath(game.mouseX, game.mouseY)) {
         interactingWithBox = { letter: start, count };
-        game.ctx.fillStyle = COLORS.darkyellow;
+        game.ctx.fillStyle = COLORS.darkyellow(game);
       } else {
-        game.ctx.fillStyle = COLORS.yellow;
+        game.ctx.fillStyle = COLORS.yellow(game);
       }
       game.ctx.fill();
-      game.ctx.fillStyle = COLORS.black;
+      game.ctx.fillStyle = COLORS.fg(game);
       game.ctx.font = `bold ${SIZES.tiny(game)}px ${FONTS.word}`
       game.ctx.fillText(count.toString(),
         startsX + cellSize / 2 + cellSize * (j + 1),
@@ -1025,8 +1052,8 @@ function hints(_time: DOMHighResTimeStamp, game: Game, menuBarY: number, menuBar
 
       game.ctx.beginPath();
       game.ctx.roundRect(interactiveX, interactiveY, interactiveWidth, interactiveHeight, SIZES.teeny(game));
-      game.ctx.fillStyle = COLORS.white;
-      game.ctx.strokeStyle = COLORS.black;
+      game.ctx.fillStyle = COLORS.bg(game);
+      game.ctx.strokeStyle = COLORS.fg(game);
       game.ctx.lineWidth = 1;
       game.ctx.fill();
       game.ctx.stroke();
@@ -1035,7 +1062,7 @@ function hints(_time: DOMHighResTimeStamp, game: Game, menuBarY: number, menuBar
       const firstLine = `There ${count === 1 ? "is" : "are"} ${count} more word${count === 1 ? "" : "s"}`
       const secondLine = `that start${count === 1 ? "s" : ""} with ${letter.toUpperCase()}.`;
 
-      game.ctx.fillStyle = COLORS.black;
+      game.ctx.fillStyle = COLORS.fg(game);
       game.ctx.font = `${SIZES.tiny(game)}px ${FONTS.default}`
       game.ctx.textAlign = "center";
 
@@ -1069,14 +1096,14 @@ function wheel(time: DOMHighResTimeStamp, game: Game) {
   const centerX = game.width / 2;
   const centerY = game.height - hexRadius * 4.5;
   hexagon(game.ctx, centerX, centerY, hexRadius);
-  game.ctx.fillStyle = COLORS.yellow;
+  game.ctx.fillStyle = COLORS.yellow(game);
   if (!game.wordlistIsOpen && game.ctx.isPointInPath(game.mouseX, game.mouseY)) {
     if (game.mouseDown) {
       game.mouseDown = false;
       game.clickedHex = 0;
       game.clickedHexTime = time;
       clicked = game.puzzle.letters[0];
-      game.ctx.fillStyle = COLORS.darkyellow;
+      game.ctx.fillStyle = COLORS.darkyellow(game);
     }
   }
   if (game.clickedHex === 0 && game.clickedHexTime != null) {
@@ -1096,7 +1123,7 @@ function wheel(time: DOMHighResTimeStamp, game: Game) {
     }
   }
   game.ctx.fill();
-  game.ctx.fillStyle = COLORS.black;
+  game.ctx.fillStyle = COLORS.fg(game);
   game.ctx.fillText(game.puzzle.letters[0], centerX, centerY);
 
   // Surrounding hexagons
@@ -1106,14 +1133,14 @@ function wheel(time: DOMHighResTimeStamp, game: Game) {
     const x = centerX + Math.cos(radians * i + radians / 2) * radius;
     const y = centerY + Math.sin(radians * i + radians / 2) * radius;
     hexagon(game.ctx, x, y, hexRadius);
-    game.ctx.fillStyle = COLORS.gray;
+    game.ctx.fillStyle = COLORS.gray(game);
     if (!game.wordlistIsOpen && game.ctx.isPointInPath(game.mouseX, game.mouseY)) {
       if (game.mouseDown) {
         game.mouseDown = false;
         game.clickedHex = i;
         game.clickedHexTime = time;
         clicked = game.puzzle.letters[i];
-        game.ctx.fillStyle = COLORS.darkgray;
+        game.ctx.fillStyle = COLORS.darkgray(game);
       }
     }
     if (game.clickedHex === i && game.clickedHexTime != null) {
@@ -1133,7 +1160,7 @@ function wheel(time: DOMHighResTimeStamp, game: Game) {
       }
     }
     game.ctx.fill();
-    game.ctx.fillStyle = COLORS.black;
+    game.ctx.fillStyle = COLORS.fg(game);
     game.ctx.fillText(game.puzzle.letters[i], x, y);
   }
 
@@ -1148,7 +1175,7 @@ function word(_time: DOMHighResTimeStamp, game: Game) {
   let fontsize = SIZES.medium(game);
   game.ctx.font = `bold ${fontsize}px ${FONTS.word}`;
   game.ctx.textBaseline = "middle";
-  game.ctx.fillStyle = COLORS.black;
+  game.ctx.fillStyle = COLORS.fg(game);
   let wordWidth = game.ctx.measureText(text).width;
   while (wordWidth > game.width * 0.75) {
     fontsize = fontsize * 0.95;
@@ -1159,7 +1186,7 @@ function word(_time: DOMHighResTimeStamp, game: Game) {
   // If there's a wordMessage, display that instead of the word
   if (game.wordMessage != null) {
     game.ctx.textAlign = "center";
-    game.ctx.fillStyle = COLORS.darkgray;
+    game.ctx.fillStyle = COLORS.darkgray(game);
     game.ctx.fillText(game.wordMessage, game.width / 2, wordY);
     return;
   }
@@ -1167,7 +1194,7 @@ function word(_time: DOMHighResTimeStamp, game: Game) {
   game.ctx.textAlign = "left";
   let letterX = game.width / 2 - wordWidth / 2;
   for (const letter of game.puzzle.word) {
-    game.ctx.fillStyle = letter === game.puzzle.letters[0] ? COLORS.yellow : COLORS.black;
+    game.ctx.fillStyle = letter === game.puzzle.letters[0] ? COLORS.yellow(game) : COLORS.fg(game);
     game.ctx.fillText(letter, letterX, wordY);
     letterX += game.ctx.measureText(letter).width;
   }
@@ -1232,17 +1259,17 @@ function controls(_time: DOMHighResTimeStamp, game: Game) {
   game.ctx.font = `${SIZES.tiny(game)}px ${FONTS.default}`;
   game.ctx.textAlign = "center";
   game.ctx.textBaseline = "middle";
-  game.ctx.strokeStyle = COLORS.black;
+  game.ctx.strokeStyle = COLORS.fg(game);
 
   // Delete
   const deleteX = game.width / 2 - controlsWidth / 2;
   game.ctx.beginPath();
   game.ctx.roundRect(deleteX, controlY - controlRadius, controlWidth, controlRadius * 2, controlRadius);
-  game.ctx.fillStyle = COLORS.white;
+  game.ctx.fillStyle = COLORS.bg(game);
   if (!game.wordlistIsOpen && game.ctx.isPointInPath(game.mouseX, game.mouseY)) {
     if (game.mouseDown) {
       game.mouseDown = false;
-      game.ctx.fillStyle = COLORS.darkgray;
+      game.ctx.fillStyle = COLORS.darkgray(game);
       game.puzzle.word = game.puzzle.word.substring(0, game.puzzle.word.length - 1);
       window.requestAnimationFrame((time) => main(time, game));
     }
@@ -1250,17 +1277,17 @@ function controls(_time: DOMHighResTimeStamp, game: Game) {
   game.ctx.lineWidth = 1;
   game.ctx.stroke();
   game.ctx.fill();
-  game.ctx.fillStyle = COLORS.black;
+  game.ctx.fillStyle = COLORS.fg(game);
   game.ctx.fillText("Delete", deleteX + controlWidth / 2, controlY);
 
   // Shuffle
   game.ctx.beginPath();
   game.ctx.arc(game.width / 2, controlY, controlRadius, 0, 2 * Math.PI)
-  game.ctx.fillStyle = COLORS.white;
+  game.ctx.fillStyle = COLORS.bg(game);
   if (!game.wordlistIsOpen && game.ctx.isPointInPath(game.mouseX, game.mouseY)) {
     if (game.mouseDown) {
       game.mouseDown = false;
-      game.ctx.fillStyle = COLORS.darkgray;
+      game.ctx.fillStyle = COLORS.darkgray(game);
       game.puzzle.letters = game.puzzle.letters
         .map((letter, i) => ({ letter, sort: i === 0 ? 0 : Math.random() }))
         .sort((a, b) => a.sort - b.sort)
@@ -1276,11 +1303,11 @@ function controls(_time: DOMHighResTimeStamp, game: Game) {
   const enterX = game.width / 2 + controlsWidth / 2 - controlWidth;
   game.ctx.beginPath();
   game.ctx.roundRect(enterX, controlY - controlRadius, controlWidth, controlRadius * 2, controlRadius);
-  game.ctx.fillStyle = COLORS.white;
+  game.ctx.fillStyle = COLORS.bg(game);
   if (!game.wordlistIsOpen && game.ctx.isPointInPath(game.mouseX, game.mouseY)) {
     if (game.mouseDown) {
       game.mouseDown = false;
-      game.ctx.fillStyle = COLORS.darkgray;
+      game.ctx.fillStyle = COLORS.darkgray(game);
 
       submitWord(game);
 
@@ -1290,7 +1317,7 @@ function controls(_time: DOMHighResTimeStamp, game: Game) {
   game.ctx.lineWidth = 1;
   game.ctx.stroke();
   game.ctx.fill();
-  game.ctx.fillStyle = COLORS.black;
+  game.ctx.fillStyle = COLORS.fg(game);
   game.ctx.fillText("Enter", enterX + controlWidth / 2, controlY);
 }
 
@@ -1327,7 +1354,7 @@ function scorebar(_time: DOMHighResTimeStamp, game: Game) {
   game.ctx.beginPath();
   game.ctx.moveTo(scorebarX + rankWidth, scorebarY);
   game.ctx.lineTo(scorebarX + scorebarWidth, scorebarY);
-  game.ctx.strokeStyle = COLORS.gray;
+  game.ctx.strokeStyle = COLORS.gray(game);
   game.ctx.stroke();
   // Score ticks
   game.ctx.textBaseline = "middle";
@@ -1353,9 +1380,9 @@ function scorebar(_time: DOMHighResTimeStamp, game: Game) {
     }
 
     if (i <= rank) {
-      game.ctx.fillStyle = COLORS.yellow;
+      game.ctx.fillStyle = COLORS.yellow(game);
     } else {
-      game.ctx.fillStyle = COLORS.gray;
+      game.ctx.fillStyle = COLORS.gray(game);
     }
 
     game.ctx.beginPath();
@@ -1363,7 +1390,7 @@ function scorebar(_time: DOMHighResTimeStamp, game: Game) {
     game.ctx.fill();
 
     game.ctx.textAlign = "center";
-    game.ctx.fillStyle = COLORS.black;
+    game.ctx.fillStyle = COLORS.fg(game);
     if (interactingWithTick) {
       // Display min score for rank if interacting
       game.ctx.font = `${SIZES.tiny(game)}px ${FONTS.word}`;
@@ -1385,7 +1412,7 @@ function scorebar(_time: DOMHighResTimeStamp, game: Game) {
   game.ctx.font = `bold ${SIZES.tiny(game)}px ${FONTS.default}`;
   game.ctx.textAlign = "left";
   game.ctx.textBaseline = "middle";
-  game.ctx.fillStyle = COLORS.black;
+  game.ctx.fillStyle = COLORS.fg(game);
   game.ctx.fillText(displayRank, scorebarX, scorebarY);
 }
 
@@ -1397,8 +1424,8 @@ function wordlist(_time: DOMHighResTimeStamp, game: Game) {
 
   game.ctx.beginPath();
   game.ctx.roundRect(wordlistX, wordlistY, wordlistWidth, wordlistHeight, SIZES.teeny(game));
-  game.ctx.strokeStyle = COLORS.black;
-  game.ctx.fillStyle = COLORS.white;
+  game.ctx.strokeStyle = COLORS.fg(game);
+  game.ctx.fillStyle = COLORS.bg(game);
   game.ctx.fill();
   game.ctx.stroke();
 
@@ -1438,7 +1465,7 @@ function wordlist(_time: DOMHighResTimeStamp, game: Game) {
       // No need to bring the end of the list above the bottom
       Math.max(0, (rows + 1) * textHeight - wordlistHeight));
 
-    game.ctx.fillStyle = COLORS.black;
+    game.ctx.fillStyle = COLORS.fg(game);
 
     const textY = wordlistY + textHeight - game.wordlistScroll;
     const leftX = wordlistX + SIZES.tiny(game);
@@ -1462,7 +1489,7 @@ function wordlist(_time: DOMHighResTimeStamp, game: Game) {
     game.ctx.beginPath();
     game.ctx.moveTo(game.width / 2, wordlistY + textHeight / 2);
     game.ctx.lineTo(game.width / 2, wordlistY + wordlistHeight - textHeight / 2);
-    game.ctx.strokeStyle = COLORS.gray;
+    game.ctx.strokeStyle = COLORS.gray(game);
     game.ctx.stroke();
 
     // Restore previous clipping
@@ -1477,7 +1504,7 @@ function wordlist(_time: DOMHighResTimeStamp, game: Game) {
     let previewSize = 0;
     const textX = wordlistX + SIZES.tiny(game);
     const padding = SIZES.teeny(game);
-    game.ctx.fillStyle = COLORS.black;
+    game.ctx.fillStyle = COLORS.fg(game);
     game.ctx.font = `${SIZES.tiny(game)}px ${FONTS.default}`;
     const elipsisSize = game.ctx.measureText("...").width;
     for (const word of game.puzzle.found) {
