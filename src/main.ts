@@ -842,7 +842,11 @@ function hints(_time: DOMHighResTimeStamp, game: Game, menuBarY: number, menuBar
     const remainingPangrams = game.hintsPuzzle.pangrams - game.hintsFound.pangrams;
     let hintsPangramText = "";
     if (remainingPangrams === 0) {
-      hintsPangramText = `You found all the pangrams! There were ${game.hintsPuzzle.pangrams} in all.`;
+      if (game.hintsPuzzle.pangrams === 1) {
+        hintsPangramText = "You found the pangram! That was the only one.";
+      } else {
+        hintsPangramText = `You found all the pangrams! There were ${game.hintsPuzzle.pangrams} in all.`;
+      }
     } else {
       if (remainingPangrams === 1) {
         hintsPangramText = "There's one more pangram";
