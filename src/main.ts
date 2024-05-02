@@ -217,6 +217,31 @@ window.addEventListener("DOMContentLoaded", async () => {
     window.requestAnimationFrame((time) => main(time, game));
   });
 
+  window.addEventListener("keyup", (event) => {
+    if (DEBUG.eventLogging) console.log("keyup");
+
+    game.wordMessage = null;
+
+    const key = event.key.toUpperCase();
+    if (game.puzzle.letters.includes(key)) {
+      game.puzzle.word += key;
+      window.requestAnimationFrame((time) => main(time, game));
+    } else if (key === "ENTER") {
+      submitWord(game);
+      window.requestAnimationFrame((time) => main(time, game));
+    } else if (key === "BACKSPACE") {
+      game.puzzle.word = game.puzzle.word.substring(0, game.puzzle.word.length - 1);
+      window.requestAnimationFrame((time) => main(time, game));
+    } else if (key === " ") {
+      // Shuffle on space
+      game.puzzle.letters = game.puzzle.letters
+        .map((letter, i) => ({ letter, sort: i === 0 ? 0 : Math.random() }))
+        .sort((a, b) => a.sort - b.sort)
+        .map(({ letter }) => letter);
+      window.requestAnimationFrame((time) => main(time, game));
+    }
+  });
+
   // Listen for dark mode preference changes
   window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
     if (DEBUG.eventLogging) console.log("prefers-color-scheme");
