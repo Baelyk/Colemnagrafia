@@ -72,7 +72,6 @@ interface Game {
   wordMessage: string | null;
 
   wordlistIsOpen: boolean;
-  wordlistToggleTime: DOMHighResTimeStamp | null;
   wordlistScroll: number;
   wordlistScrollSpeed: number;
   /** Whether the user is currently scrolling (i.e. finger moving the list) */
@@ -136,6 +135,14 @@ window.addEventListener("DOMContentLoaded", async () => {
     game.mouseY = event.clientY * game.scaling;
     game.mouseDown = true;
     game.wordMessage = null;
+
+    if (game.wordlistIsOpen) {
+      game.wordlistUserIsScrolling = true;
+    }
+    if (game.hintsOpen) {
+      game.hintsUserIsScrolling = true;
+    }
+
     window.requestAnimationFrame((time) => main(time, game));
   });
 
@@ -193,6 +200,11 @@ window.addEventListener("DOMContentLoaded", async () => {
 
     if (game.wordlistIsOpen) {
       game.wordlistUserIsScrolling = false;
+      // If the wordlist is open and the user has lifted the pointer (anywhere), close the wordlist
+      if (game.mouseDown) {
+        game.mouseDown = false;
+        game.wordlistIsOpen = false;
+      }
     }
     if (game.hintsOpen) {
       game.hintsUserIsScrolling = false;
@@ -300,7 +312,6 @@ function init(): Game {
     wordMessage: null,
 
     wordlistIsOpen: false,
-    wordlistToggleTime: null,
     wordlistScroll: 0,
     wordlistScrollSpeed: 0,
     wordlistUserIsScrolling: false,
@@ -1368,7 +1379,7 @@ function scorebar(_time: DOMHighResTimeStamp, game: Game) {
   game.ctx.fillText(displayRank, scorebarX, scorebarY);
 }
 
-function wordlist(time: DOMHighResTimeStamp, game: Game) {
+function wordlist(_time: DOMHighResTimeStamp, game: Game) {
   const wordlistWidth = game.width - 2 * SIZES.tiny(game);
   const wordlistX = game.width / 2 - wordlistWidth / 2;
   const wordlistY = 4 * SIZES.small(game);
@@ -1402,8 +1413,9 @@ function wordlist(time: DOMHighResTimeStamp, game: Game) {
       game.wordlistScrollSpeed *= 0.97;
       if (Math.abs(game.wordlistScrollSpeed) < 0.1) {
         game.wordlistScrollSpeed = 0;
+      } else {
+        window.requestAnimationFrame((time) => main(time, game));
       }
-      window.requestAnimationFrame((time) => main(time, game));
     } else if (game.wordlistUserIsScrolling) {
       //game.wordlistUserIsScrolling = false;
       //window.requestAnimationFrame((time) => main(time, game));
@@ -1469,16 +1481,15 @@ function wordlist(time: DOMHighResTimeStamp, game: Game) {
       game.ctx.fillText(word, textX + previewSize, wordlistY + wordlistHeight / 2);
       previewSize += wordSize + padding;
     }
-  }
 
-  // Toggle the wordlist being open when you click on it
-  game.ctx.beginPath();
-  game.ctx.roundRect(wordlistX, wordlistY, wordlistWidth, wordlistHeight, SIZES.teeny(game));
-  if (game.mouseDown && game.ctx.isPointInPath(game.mouseX, game.mouseY)) {
-    game.mouseDown = false;
-    game.wordlistIsOpen = !game.wordlistIsOpen;
-    game.wordlistToggleTime = time;
-    window.requestAnimationFrame((time) => main(time, game));
+    // Toggle the wordlist being open when you click on it
+    game.ctx.beginPath();
+    game.ctx.roundRect(wordlistX, wordlistY, wordlistWidth, wordlistHeight, SIZES.teeny(game));
+    if (game.mouseDown && game.ctx.isPointInPath(game.mouseX, game.mouseY)) {
+      game.mouseDown = false;
+      game.wordlistIsOpen = !game.wordlistIsOpen;
+      window.requestAnimationFrame((time) => main(time, game));
+    }
   }
 }
 
