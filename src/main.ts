@@ -551,11 +551,14 @@ async function getPuzzle(game: Game, forceNewPuzzle?: "daily" | "new") {
     return;
   }
   game.puzzle = puzzle;
-  if (DEBUG.foundAllWords) {
-    game.puzzle.found = Object.values(game.puzzle.words).flat();
-  }
   [game.hintsPuzzle, game.hintsFound] = getPuzzleHints(game.puzzle);
   console.log(game.hintsPuzzle);
+
+  if (DEBUG.foundAllWords) {
+    for (const word of Object.values(game.puzzle.words).flat()) {
+      submitWord(game, word);
+    }
+  }
 
   savePuzzle(game);
 }
@@ -563,11 +566,14 @@ async function getPuzzle(game: Game, forceNewPuzzle?: "daily" | "new") {
 async function restartPuzzle(game: Game) {
   game.puzzle.word = "";
   game.puzzle.found = [];
-  if (DEBUG.foundAllWords) {
-    game.puzzle.found = Object.values(game.puzzle.words).flat();
-  }
   game.puzzle.score = 0;
   [, game.hintsFound] = getPuzzleHints(game.puzzle);
+
+  if (DEBUG.foundAllWords) {
+    for (const word of Object.values(game.puzzle.words).flat()) {
+      submitWord(game, word);
+    }
+  }
   savePuzzle(game);
 }
 
@@ -923,7 +929,7 @@ function hints(_time: DOMHighResTimeStamp, game: Game, menuBarY: number, menuBar
     }
     game.ctx.font = `${SIZES.tiny(game)}px ${FONTS.word}`
     for (let j = -1; j < lengths.length; j++) {
-      game.ctx.fillText((j === -1 ? "To." : lengthsTotals[j]).toString(),
+      game.ctx.fillText((j === -1 ? "To." : (lengthsTotals[j] || "")).toString(),
         tableX + cellSize / 2 + cellSize * (j + 1),
         tableY + cellSize / 2 + cellSize * (letters.length + 1));
     }
@@ -1171,8 +1177,8 @@ function removeAccents(str: string): string {
   return str.normalize("NFD").replace(/\p{Diacritic}/gu, "");
 }
 
-function submitWord(_time: DOMHighResTimeStamp, game: Game) {
-  const enteredWord = game.puzzle.word.toLowerCase();
+function submitWord(game: Game, word?: string) {
+  const enteredWord = removeAccents(word ?? game.puzzle.word.toLowerCase());
   game.puzzle.word = "";
 
   if (Object.hasOwn(game.puzzle.words, enteredWord)) {
@@ -1276,7 +1282,7 @@ function controls(_time: DOMHighResTimeStamp, game: Game) {
       game.mouseDown = false;
       game.ctx.fillStyle = COLORS.darkgray;
 
-      submitWord(_time, game);
+      submitWord(game);
 
       window.requestAnimationFrame((time) => main(time, game));
     }
@@ -1302,8 +1308,12 @@ const SCORERANKS: [number, string][] = [
 ];
 
 function scorebar(_time: DOMHighResTimeStamp, game: Game) {
-  const rank = SCORERANKS.findIndex(
+  let rank = SCORERANKS.findIndex(
     ([minScore, _]) => game.puzzle.score < Math.round(minScore * game.puzzle.maxScore)) - 1;
+  // Rank is Queen Bee if no min score is < the score
+  if (rank === -2) {
+    rank = SCORERANKS.length - 1;
+  }
 
   const scorebarWidth = game.width - 2 * SIZES.tiny(game);
   const scorebarX = game.width / 2 - scorebarWidth / 2;
