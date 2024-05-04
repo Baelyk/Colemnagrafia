@@ -90,6 +90,9 @@ interface Game {
   hintsScroll: number;
   hintsScrollSpeed: number;
   hintsUserIsScrolling: boolean;
+  hintsTableScroll: number;
+  hintsTableScrollSpeed: number;
+  hintsTableUserIsScrolling: boolean;
 }
 
 interface Puzzle {
@@ -145,6 +148,7 @@ window.addEventListener("DOMContentLoaded", async () => {
     }
     if (game.hintsOpen) {
       game.hintsUserIsScrolling = true;
+      game.hintsTableUserIsScrolling = true;
     }
 
     window.requestAnimationFrame((time) => main(time, game));
@@ -164,6 +168,7 @@ window.addEventListener("DOMContentLoaded", async () => {
     }
     if (game.hintsOpen) {
       game.hintsScroll += event.deltaY;
+      game.hintsTableScroll += event.deltaX;
     }
 
     window.requestAnimationFrame((time) => main(time, game));
@@ -193,9 +198,29 @@ window.addEventListener("DOMContentLoaded", async () => {
       game.wordlistUserIsScrolling = true;
     }
     if (game.hintsOpen) {
-      game.hintsScroll -= event.movementY;
-      game.hintsScrollSpeed = event.movementY;
-      game.hintsUserIsScrolling = true;
+      if (game.hintsTableUserIsScrolling) {
+        if (Math.abs(event.movementY) - Math.abs(event.movementX) > 2) {
+          // User is scrolling in the table, but y-scrolling is greater than
+          // x-scrolling, so only scroll the hints page
+          game.hintsTableUserIsScrolling = false;
+        } else {
+          // User is scrolling in the table
+          game.hintsUserIsScrolling = false;
+        }
+      } else {
+        game.hintsUserIsScrolling = true;
+      }
+
+      if (game.hintsUserIsScrolling) {
+        game.hintsScroll -= event.movementY;
+        game.hintsScrollSpeed = event.movementY;
+        game.hintsUserIsScrolling = true;
+      }
+      if (game.hintsTableUserIsScrolling) {
+        game.hintsTableScroll -= event.movementX;
+        game.hintsTableScrollSpeed = event.movementX;
+        game.hintsTableUserIsScrolling = true;
+      }
     }
   });
 
@@ -212,6 +237,7 @@ window.addEventListener("DOMContentLoaded", async () => {
     }
     if (game.hintsOpen) {
       game.hintsUserIsScrolling = false;
+      game.hintsTableUserIsScrolling = false;
     }
 
     window.requestAnimationFrame((time) => main(time, game));
@@ -369,6 +395,9 @@ function init(): Game {
     hintsScroll: 0,
     hintsScrollSpeed: 0,
     hintsUserIsScrolling: false,
+    hintsTableScroll: 0,
+    hintsTableScrollSpeed: 0,
+    hintsTableUserIsScrolling: false,
   };
 }
 
@@ -897,9 +926,24 @@ function hints(_time: DOMHighResTimeStamp, game: Game, menuBarY: number, menuBar
     }
     const lengths = [...lengthsSet].sort((a, b) => a - b);
     const lengthsTotals = Array(lengths.length).fill(0);
-    //const tableWidth = (lengths.length + 2) * cellSize;
+    // Table width includes padding
+    const tableWidth = (lengths.length + 2) * cellSize + 2 * SIZES.small(game);
     const tableHeight = cellSize * (letters.length + 2);
-    const tableX = SIZES.small(game);
+
+    // Both being true means the user just started scrolling (or tapping)
+    if (game.mouseDown && game.hintsTableUserIsScrolling) {
+      game.ctx.beginPath();
+      game.ctx.rect(0, tableY, tableWidth, tableHeight);
+      if (!game.ctx.isPointInPath(game.mouseX, game.mouseY)) {
+        // Pointer isn't inside the table, so don't scroll table
+        game.hintsTableUserIsScrolling = false;
+      }
+    }
+
+    const hintsTableMaxScroll = Math.max(0, tableWidth - game.width);
+    [game.hintsTableScroll, game.hintsTableScrollSpeed] = scrolling(game, game.hintsTableScroll, game.hintsTableScrollSpeed, game.hintsTableUserIsScrolling, hintsTableMaxScroll);
+
+    const tableX = SIZES.small(game) - game.hintsTableScroll;
     game.ctx.textBaseline = "top";
     for (let j = 0; j < lengths.length; j++) {
       game.ctx.fillText(lengths[j].toString(),
