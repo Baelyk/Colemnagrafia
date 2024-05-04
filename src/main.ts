@@ -1346,6 +1346,46 @@ function controls(_time: DOMHighResTimeStamp, game: Game) {
   game.ctx.lineWidth = 1;
   game.ctx.stroke();
   game.ctx.fill();
+  // Shuffle symbol
+  game.ctx.save();
+  game.ctx.translate(game.width / 2, controlY);
+  game.ctx.rotate(-Math.PI / 4);
+
+  // Arrow lines
+  const arrowLineArcAngle = 7 * Math.PI / 8;
+  game.ctx.beginPath();
+  game.ctx.arc(0, 0, SIZES.tiny(game), 2 * Math.PI / 4, 2 * Math.PI / 4 + arrowLineArcAngle);
+  game.ctx.stroke();
+  game.ctx.beginPath();
+  game.ctx.arc(0, 0, SIZES.tiny(game), 6 * Math.PI / 4, 6 * Math.PI / 4 + arrowLineArcAngle);
+  game.ctx.stroke();
+
+  // Upper arrow head
+  game.ctx.save();
+  game.ctx.translate(0, -SIZES.tiny(game));
+  // π/4.5 based on aesthetic (around π/6 should be correct)
+  game.ctx.rotate(-Math.PI / 4.5);
+  game.ctx.beginPath();
+  game.ctx.moveTo(0, 0);
+  game.ctx.lineTo(SIZES.teeny(game), 0);
+  game.ctx.moveTo(0, 0);
+  game.ctx.lineTo(0, SIZES.teeny(game));
+  game.ctx.stroke();
+  game.ctx.restore();
+
+  // Lower arrow head
+  game.ctx.save();
+  game.ctx.translate(0, SIZES.tiny(game));
+  game.ctx.rotate(Math.PI - Math.PI / 4.5);
+  game.ctx.beginPath();
+  game.ctx.moveTo(0, 0);
+  game.ctx.lineTo(SIZES.teeny(game), 0);
+  game.ctx.moveTo(0, 0);
+  game.ctx.lineTo(0, SIZES.teeny(game));
+  game.ctx.stroke();
+  game.ctx.restore();
+
+  game.ctx.restore();
 
   // Enter
   const enterX = game.width / 2 + controlsWidth / 2 - controlWidth;
