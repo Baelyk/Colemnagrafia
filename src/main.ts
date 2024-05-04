@@ -65,6 +65,7 @@ interface Game {
   errorText: string | null;
 
   puzzle: Puzzle;
+  revealAnswers: boolean;
 
   mouseX: number;
   mouseY: number;
@@ -371,6 +372,7 @@ function init(): Game {
     errorText: null,
 
     puzzle,
+    revealAnswers: false,
 
     mouseX: -1,
     mouseY: -1,
@@ -772,6 +774,15 @@ function menu(_time: DOMHighResTimeStamp, game: Game, menuY: number, menuWidth: 
 
         window.requestAnimationFrame((time) => main(time, game));
       }],
+      [game.revealAnswers ? "Stop revealing answers" : "Reveal answers", () => {
+        game.revealAnswers = !game.revealAnswers;
+        if (game.revealAnswers) {
+          game.wordlistIsOpen = true;
+        }
+        game.menuOpen = false;
+
+        window.requestAnimationFrame((time) => main(time, game));
+      }],
       [`${game.darkMode ? "Light" : "Dark"} mode`, () => {
         game.darkMode = !game.darkMode;
         game.menuOpen = false;
@@ -782,7 +793,7 @@ function menu(_time: DOMHighResTimeStamp, game: Game, menuY: number, menuWidth: 
       }]
     ];
 
-    const menuY = game.height / 2 - menuOptions.length * menuRowHeight;
+    const menuY = game.height / 2 - menuOptions.length * menuRowHeight / 2;
 
     menuOptions.forEach(([menuOptionText, menuOptionAction], i) => {
       game.ctx.beginPath();
@@ -1512,7 +1523,7 @@ function wordlist(_time: DOMHighResTimeStamp, game: Game) {
 
   game.ctx.beginPath();
   game.ctx.roundRect(wordlistX, wordlistY, wordlistWidth, wordlistHeight, SIZES.teeny(game));
-  game.ctx.strokeStyle = COLORS.fg(game);
+  game.ctx.strokeStyle = game.revealAnswers ? COLORS.yellow(game) : COLORS.fg(game);
   game.ctx.fillStyle = COLORS.bg(game);
   game.ctx.fill();
   game.ctx.stroke();
@@ -1530,8 +1541,16 @@ function wordlist(_time: DOMHighResTimeStamp, game: Game) {
     game.ctx.font = `bold ${SIZES.tiny(game)}px ${FONTS.default}`;
     const textHeight = getTextHeight(game.ctx, "A") * 2;
 
+    // Get the wordlist and sort it alphabetically
+    let list = [...game.puzzle.found];
+    if (game.revealAnswers) {
+      // Revealing answers, so show all words
+      list = Object.values(game.puzzle.words).flat();
+    }
+    list.sort((a, b) => a.localeCompare(b));
+
     // Restrict scrolling
-    const rows = Math.ceil(game.puzzle.found.length / 2) + 1;
+    const rows = Math.ceil(list.length / 2) + 1;
     const wordlistInnerHeight = (rows + 1) * textHeight - wordlistHeight;
     const wordlistMaxScroll = Math.max(0, wordlistInnerHeight);
     [game.wordlistScroll, game.wordlistScrollSpeed] = scrolling(game, game.wordlistScroll, game.wordlistScrollSpeed, game.wordlistUserIsScrolling, wordlistMaxScroll);
@@ -1542,12 +1561,13 @@ function wordlist(_time: DOMHighResTimeStamp, game: Game) {
     const leftX = wordlistX + SIZES.tiny(game);
     const rightX = wordlistX + wordlistWidth / 2 + SIZES.tiny(game);
     let count = 0;
-    const alphabetical = [...game.puzzle.found].sort((a, b) => a.localeCompare(b));
     game.ctx.font = `${SIZES.tiny(game)}px ${FONTS.default}`;
     game.ctx.fillText(`${game.puzzle.found.length} word${count === 1 ? "" : "s"} found`, leftX, textY);
 
-    for (const word of alphabetical) {
-      game.ctx.font = `${game.puzzle.pangrams.includes(word) ? "bold" : ""} ${SIZES.tiny(game)}px ${FONTS.default}`;
+    for (const word of list) {
+      const weight = game.puzzle.pangrams.includes(word) ? "bold" : "";
+      game.ctx.font = `${weight} ${SIZES.tiny(game)}px ${FONTS.default}`;
+      game.ctx.fillStyle = game.puzzle.found.includes(word) ? COLORS.fg(game) : COLORS.yellow(game);
       const wordY = textY + textHeight * (Math.floor(count / 2) + 1);
       if (count % 2 === 0) {
         game.ctx.fillText(word, leftX, wordY);
