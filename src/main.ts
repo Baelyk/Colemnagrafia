@@ -835,33 +835,8 @@ function hints(_time: DOMHighResTimeStamp, game: Game, menuBarY: number, menuBar
 
     hintsY += SIZES.small(game);
 
-    // Scrolling inertia
-    if (!game.hintsUserIsScrolling && game.hintsScrollSpeed !== 0) {
-      // The user is not currently scrolling and scroll speed is positive, i.e.
-      // the hints is scrolling via "inertia"
-      game.hintsScroll -= game.hintsScrollSpeed;
-      game.hintsScrollSpeed *= 0.97;
-      if (Math.abs(game.hintsScrollSpeed) < 0.1) {
-        game.hintsScrollSpeed = 0;
-      }
-      window.requestAnimationFrame((time) => main(time, game));
-    } else if (game.hintsUserIsScrolling) {
-      //game.hintsUserIsScrolling = false;
-      //window.requestAnimationFrame((time) => main(time, game));
-    }
-
-    // Restrict scrolling
-    const maxScrollHeight = Math.max(0, game.hintsHeight - game.height);
-    if (game.hintsScroll < 0) {
-      // No need to scroll up
-      game.hintsScroll = 0;
-      game.hintsScrollSpeed = 0;
-    } else if (game.hintsScroll > maxScrollHeight) {
-      // No need to bring the end of the list above the bottom
-      game.hintsScroll = maxScrollHeight;
-      game.hintsScrollSpeed = 0;
-    }
-
+    const hintsMaxScroll = Math.max(0, game.hintsHeight - game.height);
+    [game.hintsScroll, game.hintsScrollSpeed] = scrolling(game, game.hintsScroll, game.hintsScrollSpeed, game.hintsUserIsScrolling, hintsMaxScroll);
     hintsY -= game.hintsScroll;
 
     const remainingPangrams = game.hintsPuzzle.pangrams - game.hintsFound.pangrams;
@@ -1471,28 +1446,11 @@ function wordlist(_time: DOMHighResTimeStamp, game: Game) {
     game.ctx.font = `bold ${SIZES.tiny(game)}px ${FONTS.default}`;
     const textHeight = getTextHeight(game.ctx, "A") * 2;
 
-    // Scrolling inertia
-    if (!game.wordlistUserIsScrolling && game.wordlistScrollSpeed !== 0) {
-      // The user is not currently scrolling and scroll speed is positive, i.e.
-      // the wordlist is scrolling via "inertia"
-      game.wordlistScroll -= game.wordlistScrollSpeed;
-      game.wordlistScrollSpeed *= 0.97;
-      if (Math.abs(game.wordlistScrollSpeed) < 0.1) {
-        game.wordlistScrollSpeed = 0;
-      } else {
-        window.requestAnimationFrame((time) => main(time, game));
-      }
-    } else if (game.wordlistUserIsScrolling) {
-      //game.wordlistUserIsScrolling = false;
-      //window.requestAnimationFrame((time) => main(time, game));
-    }
-
     // Restrict scrolling
     const rows = Math.ceil(game.puzzle.found.length / 2) + 1;
-    // No need to scroll up
-    game.wordlistScroll = Math.min(Math.max(0, game.wordlistScroll),
-      // No need to bring the end of the list above the bottom
-      Math.max(0, (rows + 1) * textHeight - wordlistHeight));
+    const wordlistInnerHeight = (rows + 1) * textHeight - wordlistHeight;
+    const wordlistMaxScroll = Math.max(0, wordlistInnerHeight);
+    [game.wordlistScroll, game.wordlistScrollSpeed] = scrolling(game, game.wordlistScroll, game.wordlistScrollSpeed, game.wordlistUserIsScrolling, wordlistMaxScroll);
 
     game.ctx.fillStyle = COLORS.fg(game);
 
@@ -1614,4 +1572,50 @@ function wrapText(ctx: CanvasRenderingContext2D, text: string, x: number, y: num
   ctx.fillText(line, x, y + height);
   height += getTextHeight(ctx, line);
   return height;
+}
+
+/**
+ * Handles scrolling logic, including updating scroll, inertia, and restricting scroll.
+ * @param {Game} game the game object for requesting new frames when scrolling by inertia
+ * @param {number} scroll the amount scrolled so far
+ * @param {number} scrollSpeed the speed at which the scrolling is progressing
+ * @param {boolean} userIsScrolling whether the user is current scrolling themselves
+ * @param {number} maximumScroll the maximum amount of scrolling allowed
+ * @returns {[number, number, boolean]} a 3-tuple of the new scroll distance and scroll speed
+ */
+function scrolling(game: Game, scroll: number, scrollSpeed: number, userIsScrolling: boolean, maximumScroll: number): [number, number] {
+  let newScroll = scroll;
+  let newScrollSpeed = scrollSpeed;
+
+  // Update scroll while user is scrolling
+  if (userIsScrolling) {
+    newScroll -= scrollSpeed;
+  }
+
+  // Scrolling inertia
+  if (!userIsScrolling && scrollSpeed !== 0) {
+    // The user is not currently scrolling and scroll speed is positive, i.e. scrolling via "inertia"
+    newScroll -= scrollSpeed;
+    newScrollSpeed *= 0.97;
+
+    // Enforce a minimum speed
+    if (Math.abs(newScrollSpeed) < 0.1) {
+      newScrollSpeed = 0;
+    }
+
+    window.requestAnimationFrame((time) => main(time, game));
+  }
+
+  // Restrict scrolling
+  if (newScroll < 0) {
+    // No need to scroll up
+    newScroll = 0;
+    newScrollSpeed = 0;
+  } else if (scroll > maximumScroll) {
+    // No need to bring the end of the list above the bottom
+    newScroll = maximumScroll;
+    newScrollSpeed = 0;
+  }
+
+  return [newScroll, newScrollSpeed];
 }
