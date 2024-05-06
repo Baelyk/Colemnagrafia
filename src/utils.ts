@@ -45,7 +45,7 @@ export function resizeCanvas(
 	};
 }
 
-interface HasDarkMode {
+export interface HasDarkMode {
 	darkMode: boolean;
 }
 export const COLORS = {
@@ -63,7 +63,7 @@ export const FONTS = {
 	word: "JetBrains Mono, sans-serif",
 };
 
-interface HasSize {
+export interface HasSize {
 	width: number;
 	height: number;
 }

@@ -1,3 +1,4 @@
+import { logo } from "./logo";
 import { type Game, main } from "./main";
 import { COLORS, FONTS, SIZES, shrinkFontSizeToFit, wrapText } from "./utils";
 
@@ -44,13 +45,10 @@ export function splashScreen(_time: DOMHighResTimeStamp, game: Game): boolean {
 	const logoSize = SIZES.smallestDimension(game) - 2 * SIZES.small(game);
 	const splashScreenX = game.width / 2 - logoSize / 2;
 	const splashScreenY = game.height / 2 + SIZES.small(game);
-	game.ctx.fillStyle = COLORS.fg(game);
-	game.ctx.fillRect(
-		splashScreenX,
-		splashScreenY - logoSize,
-		logoSize,
-		logoSize,
-	);
+	game.ctx.save();
+	game.ctx.translate(splashScreenX, splashScreenY - logoSize);
+	logo(game.ctx, { width: logoSize, height: logoSize }, game);
+	game.ctx.restore();
 	// Header
 	game.ctx.font = shrinkFontSizeToFit(
 		game.ctx,

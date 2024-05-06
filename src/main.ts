@@ -202,24 +202,26 @@ export interface Game {
 	hintsTableUserIsScrolling: boolean;
 }
 
-window.addEventListener("DOMContentLoaded", async () => {
-	const game = init();
-	if (game == null) {
-		console.error("Error initializing game");
-		return;
-	}
-	// For debugging, log the game
-	console.debug(game);
+if (typeof window !== "undefined") {
+	window.addEventListener("DOMContentLoaded", async () => {
+		const game = init();
+		if (game == null) {
+			console.error("Error initializing game");
+			return;
+		}
+		// For debugging, log the game
+		console.debug(game);
 
-	try {
-		await getPuzzle(game);
-	} catch (error) {
-		console.error("Puzzle generation failed");
-		console.debug(error);
-		game.errorText = JSON.stringify(error);
-	}
+		try {
+			await getPuzzle(game);
+		} catch (error) {
+			console.error("Puzzle generation failed");
+			console.debug(error);
+			game.errorText = JSON.stringify(error);
+		}
 
-	listen(game);
+		listen(game);
 
-	window.requestAnimationFrame((time) => main(time, game));
-});
+		window.requestAnimationFrame((time) => main(time, game));
+	});
+}
