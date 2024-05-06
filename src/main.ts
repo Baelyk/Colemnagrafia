@@ -63,8 +63,11 @@ interface Game {
   darkMode: boolean;
 
   errorText: string | null;
+  splashScreenText: [string, string] | null;
 
   puzzle: Puzzle;
+  geniusReached: boolean;
+  queenBeeReached: boolean;
   revealAnswers: boolean;
 
   mouseX: number;
@@ -370,8 +373,11 @@ function init(): Game {
     darkMode,
 
     errorText: null,
+    splashScreenText: null,
 
     puzzle,
+    geniusReached: false,
+    queenBeeReached: false,
     revealAnswers: false,
 
     mouseX: -1,
@@ -627,7 +633,7 @@ async function getPuzzle(game: Game, forceNewPuzzle?: "daily" | "new") {
   }
   game.puzzle = puzzle;
   [game.hintsPuzzle, game.hintsFound] = getPuzzleHints(game.puzzle);
-  console.log(game.hintsPuzzle);
+  game.queenBeeReached = false;
 
   if (DEBUG.foundAllWords) {
     for (const word of Object.values(game.puzzle.words).flat()) {
@@ -643,12 +649,14 @@ async function restartPuzzle(game: Game) {
   game.puzzle.found = [];
   game.puzzle.score = 0;
   [, game.hintsFound] = getPuzzleHints(game.puzzle);
+  game.queenBeeReached = false;
 
   if (DEBUG.foundAllWords) {
     for (const word of Object.values(game.puzzle.words).flat()) {
       submitWord(game, word);
     }
   }
+
   savePuzzle(game);
 }
 
@@ -661,8 +669,13 @@ function main(time: DOMHighResTimeStamp, game: Game) {
     return;
   }
 
+  // If there is no puzzle, display a loading message in the splash screen
   if (game.puzzle.letters.length === 0) {
     loading(time, game);
+  }
+
+  const showingSplashScreen = splashScreen(time, game);
+  if (showingSplashScreen) {
     return;
   }
 
@@ -708,7 +721,7 @@ function loading(time: DOMHighResTimeStamp, game: Game) {
   game.ctx.textBaseline = "middle";
 
   const dots = ".".repeat((time / 250) % 4);
-  game.ctx.fillText(`Loading${dots}`, game.width / 2 - game.ctx.measureText("Loading...").width / 2, game.height / 2);
+  game.splashScreenText = ["Spelling Bee", `Attempting to load in progress puzzle or create new puzzle ${dots}`];
 }
 
 function menuBar(time: DOMHighResTimeStamp, game: Game) {
@@ -1441,6 +1454,20 @@ function scorebar(_time: DOMHighResTimeStamp, game: Game) {
     rank = SCORERANKS.length - 1;
   }
 
+  if (rank === SCORERANKS.length - 2 && !game.geniusReached) {
+    // If Genius just reached, display the Genius splash screen
+    game.splashScreenText = ["Genius 🧠", "Look at you go, you're quite the genius bee!"];
+    game.queenBeeReached = true;
+    window.requestAnimationFrame((time) => main(time, game));
+  }
+
+  if (rank === SCORERANKS.length - 1 && !game.queenBeeReached) {
+    // If Queen Bee just reached, display the Queen Bee splash screen
+    game.splashScreenText = ["Queen Bee 🐝", "You're no simple busy bee, you're the Queen Bee 🐝! Amazing work finding all those words."];
+    game.queenBeeReached = true;
+    window.requestAnimationFrame((time) => main(time, game));
+  }
+
   const scorebarWidth = game.width - 2 * SIZES.tiny(game);
   const scorebarX = game.width / 2 - scorebarWidth / 2;
   const scorebarY = 3 * SIZES.small(game);
@@ -1629,6 +1656,48 @@ function wordlist(_time: DOMHighResTimeStamp, game: Game) {
   }
 }
 
+function splashScreen(_time: DOMHighResTimeStamp, game: Game): boolean {
+  if (game.splashScreenText == null) {
+    // Return false to indicate no splash screen
+    return false;
+  }
+
+  // There is splash screen text, so display the splash screen
+  // Logo
+  const logoSize = SIZES.smallestDimension(game) - 2 * SIZES.small(game);
+  const splashScreenX = game.width / 2 - logoSize / 2;
+  const splashScreenY = game.height / 2 + SIZES.small(game);
+  game.ctx.fillStyle = COLORS.fg(game);
+  game.ctx.fillRect(splashScreenX, splashScreenY - logoSize, logoSize, logoSize);
+  // Header
+  game.ctx.font = shrinkFontSizeToFit(game.ctx,
+    game.splashScreenText[0],
+    logoSize,
+    `bold ${SIZES.big(game)}px ${FONTS.default}`);
+  game.ctx.textAlign = "center";
+  game.ctx.textBaseline = "middle";
+  game.ctx.fillStyle = COLORS.fg(game);
+  game.ctx.fillText(game.splashScreenText[0], game.width / 2, splashScreenY + SIZES.medium(game));
+  // Text
+  game.ctx.font = `${SIZES.small(game)}px ${FONTS.default}`;
+  game.ctx.textAlign = "left";
+  game.ctx.textBaseline = "middle";
+
+  wrapText(game.ctx, game.splashScreenText[1], splashScreenX, splashScreenY + 3 * SIZES.medium(game), logoSize);
+
+  // Any tap dismisses the splashScreen
+  if (game.mouseDown) {
+    game.mouseDown = false;
+    game.splashScreenText = null;
+    requestAnimationFrame((time) => main(time, game));
+    return false;
+  }
+
+  // Return true to indicate there is a splash screen, and to not display
+  // anything else
+  return true;
+}
+
 function isPangram(word: string, pangrams: string[]): boolean {
   return pangrams.includes(word);
 }
@@ -1730,4 +1799,39 @@ function scrolling(game: Game, scroll: number, scrollSpeed: number, userIsScroll
   }
 
   return [newScroll, newScrollSpeed];
+}
+
+/**
+ * Shrink the font size so that the text fits within the specified width.
+ * @param ctx the Canvas 2D context
+ * @param text the text to fit
+ * @param width the maximum width to fit the text in
+ * @param startingFont the CSS font specifier for the text
+ * @returns the modified CSS font specifier with a fontsize that will fit
+ */
+function shrinkFontSizeToFit(ctx: CanvasRenderingContext2D, text: string, width: number, startingFont: string): string {
+  // Regex match to extract the fontsize and descriptors before and after
+  const regexMatch = (/([\d,.]+)px/d).exec(startingFont);
+  console.debug(regexMatch);
+  if (regexMatch == null || regexMatch.indices == null) {
+    console.error("Unable to identify fontsize to shrink");
+    return startingFont;
+  }
+  const startingFontSize = regexMatch[1];
+  const before = startingFont.substring(0, regexMatch.indices[1][0]);
+  const after = startingFont.substring(regexMatch.indices[1][1]);
+  let fontsize = Number(startingFontSize);
+
+  // Loop to slowly reduce the fontsize to fit, save and restore to preserve settings
+  ctx.save();
+  let font = `${before}${fontsize}${after}`;
+  ctx.font = font;
+  while (ctx.measureText(text).width > width) {
+    fontsize *= 0.99;
+    font = `${before}${fontsize}${after}`;
+    ctx.font = font;
+  }
+  ctx.restore();
+
+  return font;
 }
