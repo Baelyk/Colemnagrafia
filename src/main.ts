@@ -1447,17 +1447,25 @@ function scorebar(_time: DOMHighResTimeStamp, game: Game) {
   game.ctx.font = `bold ${SIZES.tiny(game)}px ${FONTS.default}`;
   const rankWidth = SIZES.tiny(game)
     + Math.max(...SCORERANKS.map((([_, rank]) => game.ctx.measureText(rank).width)));
+  const tickWidth = (scorebarWidth - rankWidth - 2 * SIZES.teeny(game)) / (SCORERANKS.length - 1);
 
   // Score bar
   let displayRank = SCORERANKS[rank][1];
+  // Stroke achieved portion in yellow
   game.ctx.beginPath();
   game.ctx.moveTo(scorebarX + rankWidth, scorebarY);
+  game.ctx.lineTo(scorebarX + rankWidth + tickWidth * rank, scorebarY);
+  game.ctx.strokeStyle = COLORS.yellow(game);
+  game.ctx.stroke();
+  // Stroke the rest in gray
+  game.ctx.beginPath();
+  game.ctx.moveTo(scorebarX + rankWidth + tickWidth * rank, scorebarY);
   game.ctx.lineTo(scorebarX + scorebarWidth, scorebarY);
   game.ctx.strokeStyle = COLORS.gray(game);
   game.ctx.stroke();
+
   // Score ticks
   game.ctx.textBaseline = "middle";
-  const tickWidth = (scorebarWidth - rankWidth - 2 * SIZES.teeny(game)) / (SCORERANKS.length - 1);
   // Only allow interacting with one tick at a time by defaulting to undefined
   // and only allow interaction when undefined. At the end of the loop of the
   // interacted with tick, set to false to disable further interaction.
