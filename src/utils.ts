@@ -182,7 +182,6 @@ export function shrinkFontSizeToFit(
 ): string {
 	// Regex match to extract the fontsize and descriptors before and after
 	const regexMatch = /([\d,.]+)px/d.exec(startingFont);
-	console.debug(regexMatch);
 	if (regexMatch == null || regexMatch.indices == null) {
 		console.error("Unable to identify fontsize to shrink");
 		return startingFont;
