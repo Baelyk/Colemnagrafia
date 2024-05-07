@@ -1,6 +1,6 @@
 use rand::{seq::SliceRandom, SeedableRng};
 use rand_chacha::ChaCha8Rng;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use unidecode::unidecode;
 
@@ -8,7 +8,7 @@ use crate::palabras;
 use crate::Error;
 
 type WordMap = HashMap<String, HashSet<String>>;
-#[derive(Clone, Serialize)]
+#[derive(Clone, Deserialize, Serialize)]
 pub struct Puzzle {
     letters: Vec<char>,
     words: WordMap,
