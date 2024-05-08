@@ -24,6 +24,12 @@ export function wordlist(_time: DOMHighResTimeStamp, game: Game) {
 	game.ctx.fill();
 	game.ctx.stroke();
 
+	if (game.mouseDown && game.ctx.isPointInPath(game.mouseX, game.mouseY)) {
+		game.mouseDown = false;
+		game.wordlistIsOpen = !game.wordlistIsOpen;
+		window.requestAnimationFrame((time) => main(time, game));
+	}
+
 	game.ctx.font = `${SIZES.tiny(game)}px ${FONTS.default}`;
 	game.ctx.textAlign = "left";
 	game.ctx.textBaseline = "middle";
@@ -110,9 +116,8 @@ export function wordlist(_time: DOMHighResTimeStamp, game: Game) {
 		game.ctx.font = `${SIZES.tiny(game)}px ${FONTS.default}`;
 		const elipsisSize = game.ctx.measureText("...").width;
 		for (const word of game.puzzle.found) {
-			game.ctx.font = `${
-				game.puzzle.pangrams.includes(word) ? "bold" : ""
-			} ${SIZES.tiny(game)}px ${FONTS.default}`;
+			game.ctx.font = `${game.puzzle.pangrams.includes(word) ? "bold" : ""
+				} ${SIZES.tiny(game)}px ${FONTS.default}`;
 			const wordSize = game.ctx.measureText(`${word}`).width;
 			if (
 				previewSize + wordSize + elipsisSize + padding >
@@ -143,10 +148,5 @@ export function wordlist(_time: DOMHighResTimeStamp, game: Game) {
 			wordlistHeight,
 			SIZES.teeny(game),
 		);
-		if (game.mouseDown && game.ctx.isPointInPath(game.mouseX, game.mouseY)) {
-			game.mouseDown = false;
-			game.wordlistIsOpen = !game.wordlistIsOpen;
-			window.requestAnimationFrame((time) => main(time, game));
-		}
 	}
 }

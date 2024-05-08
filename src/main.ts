@@ -25,6 +25,13 @@ export function main(time: DOMHighResTimeStamp, game: Game) {
 	game.ctx.fillStyle = COLORS.bg(game);
 	game.ctx.fillRect(0, 0, game.width, game.height);
 
+	components(time, game);
+
+	// Nothing left to interact with
+	game.mouseDown = false;
+}
+
+function components(time: DOMHighResTimeStamp, game: Game) {
 	if (game.errorText != null) {
 		error(time, game);
 		return;

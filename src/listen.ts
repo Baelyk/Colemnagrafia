@@ -44,10 +44,15 @@ export function listen(game: Game) {
 	window.addEventListener("pointermove", (event) => {
 		if (DEBUG.eventLogging) console.log("pointermove");
 
+		// On touchscreens, mouseDown means interacting, not scrolling
+		if (event.pointerType === "touch" && game.mouseDown) {
+			return;
+		}
+
 		// Update the game's mouseX and Y
 		game.mouseX = event.clientX * game.scaling;
 		game.mouseY = event.clientY * game.scaling;
-		// If the pointer is moving, its not down
+		// If the pointer is moving, its not interacting
 		game.mouseDown = false;
 		window.requestAnimationFrame((time) => main(time, game));
 
