@@ -97,6 +97,7 @@ export function init(): Game {
 	const puzzle: Puzzle = {
 		letters: [],
 		words: {},
+		lemmas: {},
 		pangrams: [],
 		maxScore: 0,
 		word: "",

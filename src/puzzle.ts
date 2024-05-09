@@ -10,7 +10,8 @@ export type WordMap = { [key: string]: string[] };
 
 export interface Puzzle {
 	letters: string[];
-	words: WordMap;
+	words: { [key: string]: string };
+	lemmas: WordMap;
 	pangrams: string[];
 	maxScore: number;
 	word: string;
@@ -18,7 +19,10 @@ export interface Puzzle {
 	score: number;
 }
 
-export type PuzzleData = Pick<Puzzle, "letters" | "words" | "pangrams">;
+export type PuzzleData = Pick<
+	Puzzle,
+	"letters" | "words" | "lemmas" | "pangrams"
+>;
 
 export interface HintsData {
 	pangrams: number;
@@ -103,7 +107,9 @@ export function submitWord(game: Game, word?: string) {
 		} else {
 			let count = 0;
 			let score = 0;
-			for (const word of game.puzzle.words[enteredWord]) {
+			const lemma = game.puzzle.words[enteredWord];
+			console.log(enteredWord, lemma);
+			for (const word of game.puzzle.lemmas[lemma]) {
 				game.puzzle.found.unshift(word);
 				score += scoreWord(word, game.puzzle.pangrams);
 				count += 1;
@@ -118,7 +124,7 @@ export function submitWord(game: Game, word?: string) {
 				game.hintsFound.starts.set(start, numStarts + 1);
 			}
 			game.puzzle.score += score;
-			game.wordMessage = `+${score / count}${count > 1 ? ` x${count}` : ""}`;
+			game.wordMessage = `+${score}${count > 1 ? ` for ${count}` : ""}`;
 			savePuzzle(game);
 		}
 	} else if (DEBUG.allowAnyWord) {
@@ -213,9 +219,7 @@ function deserializeHints(hints: SerializableHintsData): HintsData {
 	};
 }
 
-async function loadPuzzleFromStore(
-	day: string,
-): Promise<{
+async function loadPuzzleFromStore(day: string): Promise<{
 	puzzle: Puzzle;
 	hintsPuzzle: HintsData;
 	hintsFound: HintsData;
@@ -263,9 +267,7 @@ async function loadPuzzleFromStore(
 	};
 }
 
-async function loadPuzzleFromWebStorage(
-	_day: string,
-): Promise<{
+async function loadPuzzleFromWebStorage(_day: string): Promise<{
 	puzzle: Puzzle;
 	hintsPuzzle: HintsData;
 	hintsFound: HintsData;
@@ -291,9 +293,7 @@ async function loadPuzzleFromWebStorage(
 	return { puzzle, hintsPuzzle, hintsFound };
 }
 
-async function loadPuzzle(
-	day: string,
-): Promise<{
+async function loadPuzzle(day: string): Promise<{
 	puzzle: Puzzle;
 	hintsPuzzle: HintsData;
 	hintsFound: HintsData;
@@ -319,7 +319,8 @@ async function createDailyPuzzleFromFile(_day: string): Promise<Puzzle | null> {
 	return {
 		letters: puzzle.letters.map((l) => l.toUpperCase()),
 		// TypeScripts inferred type for words is wrong because it is intersection them, which means sometimes the map can have a key whose value is undefined, but this is not the case
-		words: puzzle.words as unknown as WordMap,
+		words: puzzle.words as unknown as { [key in string]: string },
+		lemmas: puzzles.lemas as unknown as WordMap,
 		pangrams: puzzle.pangrams,
 		maxScore: Object.values(puzzle.words)
 			.flat()
@@ -344,6 +345,7 @@ async function createDailyPuzzleFromTauri(day: string): Promise<Puzzle | null> {
 		return {
 			letters: puzzle.letters.map((l) => l.toUpperCase()),
 			words: puzzle.words,
+			lemmas: puzzle.lemmas,
 			pangrams: puzzle.pangrams,
 			maxScore: Object.values(puzzle.words)
 				.flat()

@@ -7,11 +7,11 @@ use unidecode::unidecode;
 use crate::palabras;
 use crate::Error;
 
-type WordMap = HashMap<String, HashSet<String>>;
 #[derive(Clone, Deserialize, Serialize)]
 pub struct Puzzle {
     letters: Vec<char>,
-    words: WordMap,
+    words: HashMap<String, String>,
+    lemmas: HashMap<String, HashSet<String>>,
     pangrams: Vec<String>,
 }
 
@@ -22,7 +22,8 @@ pub fn create_puzzle_from_letters(letters: Vec<char>) -> Result<Puzzle, Error> {
 
     println!("Trying {:?}", letters);
 
-    let words: Vec<(&str, &str)> = all_words
+    // Map form -> normalized lema, of all the words in the puzzle
+    let words: HashMap<String, String> = all_words
         .iter()
         .filter(|(form, _)| {
             let form = unidecode(form);
@@ -35,7 +36,7 @@ pub fn create_puzzle_from_letters(letters: Vec<char>) -> Result<Puzzle, Error> {
                 letter_set.contains(&c)
             }) && contains_center
         })
-        .copied()
+        .map(|(form, lema)| (form.to_string(), unidecode(lema)))
         .collect();
 
     let pangrams: Vec<String> = words
@@ -72,12 +73,20 @@ pub fn create_puzzle_from_letters(letters: Vec<char>) -> Result<Puzzle, Error> {
         letters
     );
 
-    // Now convert raw words into the deaccented word map
-    let mut word_map: HashMap<String, HashSet<String>> = HashMap::new();
-    words.into_iter().for_each(|(form, lema)| {
-        let stripped = unidecode(lema);
-        word_map
-            .entry(stripped)
+    // Map form -> normalized lema for the lema map
+    let mut word_map: HashMap<String, String> = HashMap::new();
+    // Map normalized lema -> all associated forms (e.g. papa includes papa and papá)
+    let mut lema_map: HashMap<String, HashSet<String>> = HashMap::new();
+    words.iter().for_each(|(form, lema)| {
+        // Get the stripped lema for this word by first checking if there is a stripped form in the
+        // words map, and using that lema (already stripped). Otherwise, use this word's lema
+        // (already stripped).
+        let stripped_lema = words.get(&unidecode(form)).unwrap_or(lema).to_string();
+        // Note this words stripped lema
+        word_map.insert(form.to_string(), stripped_lema.clone());
+        // Add this form to this stripped lema's form list
+        lema_map
+            .entry(stripped_lema)
             .or_default()
             .insert(form.to_string());
     });
@@ -85,6 +94,7 @@ pub fn create_puzzle_from_letters(letters: Vec<char>) -> Result<Puzzle, Error> {
     Ok(Puzzle {
         letters,
         words: word_map,
+        lemmas: lema_map,
         pangrams,
     })
 }
