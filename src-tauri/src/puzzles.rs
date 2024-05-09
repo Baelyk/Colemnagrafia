@@ -18,36 +18,33 @@ pub struct Puzzle {
 pub fn create_puzzle_from_letters(letters: Vec<char>) -> Result<Puzzle, Error> {
     let all_words = palabras::PALABRAS;
 
-    let words: Vec<String>;
-    let pangrams: Vec<String>;
-
     let letter_set: HashSet<char> = HashSet::from_iter(letters.iter().copied());
 
     println!("Trying {:?}", letters);
 
-    words = all_words
+    let words: Vec<(&str, &str)> = all_words
         .iter()
-        .filter(|word| {
-            let word = unidecode(word);
+        .filter(|(form, _)| {
+            let form = unidecode(form);
 
             let mut contains_center = false;
-            word.chars().all(|c| {
+            form.chars().all(|c| {
                 if c == letters[0] {
                     contains_center = true;
                 }
                 letter_set.contains(&c)
             }) && contains_center
         })
-        .map(|word| word.to_string())
+        .copied()
         .collect();
 
-    pangrams = words
+    let pangrams: Vec<String> = words
         .iter()
-        .filter(|word| {
-            let set: HashSet<char> = HashSet::from_iter(unidecode(word).chars());
+        .filter(|(form, _)| {
+            let set: HashSet<char> = HashSet::from_iter(unidecode(form).chars());
             set.len() == 7
         })
-        .cloned()
+        .map(|(form, _)| form.to_string())
         .collect();
 
     if words.len() < 25 {
@@ -76,13 +73,13 @@ pub fn create_puzzle_from_letters(letters: Vec<char>) -> Result<Puzzle, Error> {
     );
 
     // Now convert raw words into the deaccented word map
-    let mut word_map = HashMap::new();
-    words.into_iter().for_each(|word| {
-        let stripped = unidecode(&word);
+    let mut word_map: HashMap<String, HashSet<String>> = HashMap::new();
+    words.into_iter().for_each(|(form, lema)| {
+        let stripped = unidecode(lema);
         word_map
             .entry(stripped)
-            .or_insert(HashSet::new())
-            .insert(word);
+            .or_default()
+            .insert(form.to_string());
     });
 
     Ok(Puzzle {
