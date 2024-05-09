@@ -19,9 +19,15 @@ pub fn generate_words_and_pangrams() -> (HashSet<(String, String)>, HashSet<Stri
 
     elementos_by_lema.into_iter().for_each(|(lema, forms)| {
         // Decide if this is a valid word
-        let Some((_, _, categoria, frec, _, _)) = elementos.get(&lema) else {
+        let Some((_, elementos_lema, categoria, frec, _, _)) = elementos.get(&lema) else {
             return;
         };
+        if lema != *elementos_lema {
+            // If this lema is different from the lema returned from elementos, this lema is not
+            // what we wanted. E.g. (decid, decid) picks the elemento (decid, decir), and gets
+            // included, and pollutes the puzzle data.
+            return;
+        }
         let (valid, _) = filter(&lema, Some(&lema), Some(*categoria), *frec, true);
         if !valid {
             return;
