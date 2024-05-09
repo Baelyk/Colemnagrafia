@@ -81,7 +81,7 @@ pub fn parse_elementos() -> HashMap<String, ElementoRecord> {
     elementos
 }
 
-/// Parse the CREA elementos into a lema -> [list of elements] map
+/// Parse the CREA elementos into a lema -> \[list of elements\] map
 pub fn parse_elementos_by_lema() -> HashMap<String, Vec<String>> {
     println!("Parsing CREA elementos by lema...");
     let mut elementos_by_lema: HashMap<String, Vec<String>> = HashMap::new();

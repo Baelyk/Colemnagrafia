@@ -19,7 +19,9 @@ pub fn frequency(min_freq: usize, words: usize) {
             filter(word, Some(lema), Some(*cat), usize::MAX, true).0
         })
         // Second pass to ignore words derived from valid lemas
-        .filter(|(word, _)| !included_words.contains(word))
+        .filter(|(word, (_, lema, _, _, _, _))| {
+            !included_words.contains(&(word.clone(), lema.clone()))
+        })
         .filter(|(_, (_, _, _, freq, _, _))| *freq < min_freq)
         .collect();
     omitted.sort_by_key(|(_, (_, _, _, freq, _, _))| std::cmp::Reverse(*freq));
