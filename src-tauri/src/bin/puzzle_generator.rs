@@ -22,10 +22,13 @@ fn main() -> Result<(), Error> {
 
     let mut puzzles: Puzzles = HashMap::new();
     if let Some(path) = &args.path {
-        let file = File::open(path)?;
-        let reader = BufReader::new(file);
-        puzzles = serde_json::from_reader(reader)?;
-        println!("Loaded {} puzzles from {}", puzzles.len(), path.display());
+        if let Ok(file) = File::open(path) {
+            let reader = BufReader::new(file);
+            puzzles = serde_json::from_reader(reader)?;
+            println!("Loaded {} puzzles from {}", puzzles.len(), path.display());
+        } else {
+            println!("Unable to access {}, ignoring", path.display());
+        }
     }
 
     let today = utils::today()?;

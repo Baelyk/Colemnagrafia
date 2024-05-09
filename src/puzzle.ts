@@ -319,8 +319,8 @@ async function createDailyPuzzleFromFile(_day: string): Promise<Puzzle | null> {
 	return {
 		letters: puzzle.letters.map((l) => l.toUpperCase()),
 		// TypeScripts inferred type for words is wrong because it is intersection them, which means sometimes the map can have a key whose value is undefined, but this is not the case
-		words: puzzle.words as unknown as { [key in string]: string },
-		lemmas: puzzles.lemas as unknown as WordMap,
+		words: puzzle.words,
+		lemmas: puzzle.lemmas,
 		pangrams: puzzle.pangrams,
 		maxScore: Object.values(puzzle.words)
 			.flat()
