@@ -75,7 +75,7 @@ export async function restartPuzzle(game: Game) {
 	game.puzzle.word = "";
 	game.puzzle.found = [];
 	game.puzzle.score = 0;
-	[, game.hintsFound] = getPuzzleHints(game.puzzle);
+	[game.hintsPuzzle, game.hintsFound] = getPuzzleHints(game.puzzle);
 	game.queenBeeReached = false;
 
 	if (DEBUG.foundAllWords) {
@@ -183,15 +183,15 @@ function getPuzzleHints(puzzle: Puzzle): [HintsData, HintsData] {
 
 	hintsPuzzle.pangrams = puzzle.pangrams.length;
 
-	const maxLength = Math.max(
-		...Object.keys(puzzle.words).map((word) => word.length),
-	);
+	const words = Object.values(puzzle.lemmas).flat();
+
+	const maxLength = Math.max(...words.map((word) => word.length));
 	for (const letter of [...puzzle.letters].sort()) {
 		hintsPuzzle.lengths.set(letter.toLowerCase(), Array(maxLength + 1).fill(0));
 		hintsFound.lengths.set(letter.toLowerCase(), Array(maxLength + 1).fill(0));
 	}
 
-	for (const word of Object.values(puzzle.words).flat()) {
+	for (const word of words) {
 		(hintsPuzzle.lengths.get(word[0]) ?? [])[word.length] += 1;
 
 		const start = word.substring(0, 2);
