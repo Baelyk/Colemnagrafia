@@ -73,7 +73,10 @@ pub fn create_puzzle_from_letters(letters: Vec<char>) -> Result<Puzzle, Error> {
         letters
     );
 
-    // Map form -> normalized lema for the lema map
+    // Map normalized form -> normalized lema for the lema map, will be used to take puzzle input,
+    // which will be normalized, to get the lema to use in the lema map to get all the associated
+    // forms (including e.g. papa and papá, which aren't associated lema wise but are associated
+    // accent wise.)
     let mut word_map: HashMap<String, String> = HashMap::new();
     // Map normalized lema -> all associated forms (e.g. papa includes papa and papá)
     let mut lema_map: HashMap<String, HashSet<String>> = HashMap::new();
@@ -83,7 +86,7 @@ pub fn create_puzzle_from_letters(letters: Vec<char>) -> Result<Puzzle, Error> {
         // (already stripped).
         let stripped_lema = words.get(&unidecode(form)).unwrap_or(lema).to_string();
         // Note this words stripped lema
-        word_map.insert(form.to_string(), stripped_lema.clone());
+        word_map.insert(unidecode(form), stripped_lema.clone());
         // Add this form to this stripped lema's form list
         lema_map
             .entry(stripped_lema)
