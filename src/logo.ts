@@ -8,7 +8,13 @@ export function logo(
 	size: HasSize,
 	{ darkMode }: HasDarkMode,
 ) {
-	const hexRadius = SIZES.smallestDimension(size) / 3.165;
+	const hexRadius = SIZES.smallestDimension(size) / 4;
+
+	// Background
+	ctx.beginPath();
+	ctx.rect(0, 0, size.width, size.height);
+	ctx.fillStyle = COLORS.bg({ darkMode });
+	ctx.fill();
 
 	// Center hexagon
 	const centerX = size.width / 2;
