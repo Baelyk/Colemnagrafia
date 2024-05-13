@@ -96,7 +96,11 @@ export function hints(
 				hintsPangramText += `, out of ${game.hintsPuzzle.pangrams} pangrams overall.`;
 			}
 			if (game.hintsFound.pangrams === 0) {
-				hintsPangramText += " You haven't found any yet 😞.";
+				if (game.hintsPuzzle.pangrams === 1) {
+					hintsPangramText += " You haven't found it yet 😞.";
+				} else {
+					hintsPangramText += " You haven't found any yet 😞.";
+				}
 			}
 		}
 		game.ctx.font = `${SIZES.tiny(game)}px ${FONTS.default}`;
