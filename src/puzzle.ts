@@ -16,6 +16,7 @@ export interface Puzzle {
 	maxScore: number;
 	word: string;
 	found: string[];
+	justFound: string[];
 	score: number;
 }
 
@@ -110,9 +111,11 @@ export function submitWord(game: Game, word?: string) {
 			let count = 0;
 			let score = 0;
 			const lemma = game.puzzle.words[enteredWord];
+			game.puzzle.justFound = [];
 			console.log(enteredWord, lemma);
 			for (const word of game.puzzle.lemmas[lemma]) {
 				game.puzzle.found.unshift(word);
+				game.puzzle.justFound.unshift(word);
 				score += scoreWord(word, game.puzzle.pangrams);
 				count += 1;
 
@@ -329,6 +332,7 @@ async function createDailyPuzzleFromFile(_day: string): Promise<Puzzle | null> {
 			.reduce((sum, word) => sum + scoreWord(word, puzzle.pangrams), 0),
 		word: "",
 		found: [],
+		justFound: [],
 		score: 0,
 	};
 }
@@ -354,6 +358,7 @@ async function createDailyPuzzleFromTauri(day: string): Promise<Puzzle | null> {
 				.reduce((sum, word) => sum + scoreWord(word, puzzle.pangrams), 0),
 			word: "",
 			found: [],
+			justFound: [],
 			score: 0,
 		};
 	} catch (error) {

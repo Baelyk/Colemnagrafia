@@ -104,6 +104,7 @@ export function init(): Game {
 		maxScore: 0,
 		word: "",
 		found: [],
+		justFound: [],
 		score: 0,
 	};
 

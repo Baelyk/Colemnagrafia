@@ -78,8 +78,10 @@ export function wordlist(_time: DOMHighResTimeStamp, game: Game) {
 		);
 
 		for (const word of list) {
+			const italics = game.puzzle.justFound.includes(word) ? "italic" : "";
 			const weight = game.puzzle.pangrams.includes(word) ? "bold" : "";
-			game.ctx.font = `${weight} ${SIZES.tiny(game)}px ${FONTS.default}`;
+			game.ctx.font = `${italics} ${weight} ${SIZES.tiny(game)}px ${FONTS.default
+				}`;
 			game.ctx.fillStyle = game.puzzle.found.includes(word)
 				? COLORS.fg(game)
 				: COLORS.yellow(game);
@@ -117,8 +119,10 @@ export function wordlist(_time: DOMHighResTimeStamp, game: Game) {
 		game.ctx.font = `${SIZES.tiny(game)}px ${FONTS.default}`;
 		const elipsisSize = game.ctx.measureText("...").width;
 		for (const word of game.puzzle.found) {
-			game.ctx.font = `${game.puzzle.pangrams.includes(word) ? "bold" : ""
-				} ${SIZES.tiny(game)}px ${FONTS.default}`;
+			const italics = game.puzzle.justFound.includes(word) ? "italic" : "";
+			const weight = game.puzzle.pangrams.includes(word) ? "bold" : "";
+			game.ctx.font = `${italics} ${weight} ${SIZES.tiny(game)}px ${FONTS.default
+				}`;
 			const wordSize = game.ctx.measureText(`${word}`).width;
 			if (
 				previewSize + wordSize + elipsisSize + padding >
