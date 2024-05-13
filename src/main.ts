@@ -1,6 +1,6 @@
 import { controls } from "./controls";
 import { error, loading, splashScreen } from "./displays";
-import { listen } from "./listen";
+import { PointerData, gobbleMissedInteractions, listen } from "./listen";
 import { menuBar } from "./menu";
 import { type HintsData, type Puzzle, getPuzzle } from "./puzzle";
 import { scorebar } from "./scorebar";
@@ -27,8 +27,7 @@ export function main(time: DOMHighResTimeStamp, game: Game) {
 
 	components(time, game);
 
-	// Nothing left to interact with
-	game.mouseDown = false;
+	gobbleMissedInteractions(game);
 }
 
 function components(time: DOMHighResTimeStamp, game: Game) {
@@ -55,16 +54,19 @@ function components(time: DOMHighResTimeStamp, game: Game) {
 		return;
 	}
 
+	scorebar(time, game);
+
+	wordlist(time, game);
+	if (game.wordlistIsOpen) {
+		return;
+	}
+
 	const clicked = wheel(time, game);
 	game.puzzle.word += clicked;
 
 	word(time, game);
 
 	controls(time, game);
-
-	scorebar(time, game);
-
-	wordlist(time, game);
 }
 
 /**
@@ -133,9 +135,10 @@ export function init(): Game {
 		queenBeeReached: false,
 		revealAnswers: false,
 
-		mouseX: -1,
-		mouseY: -1,
-		mouseDown: false,
+		pointerX: -1,
+		pointerY: -1,
+		pointerDown: null,
+		pointerUp: null,
 
 		clickedHex: null,
 		clickedHexTime: null,
@@ -181,9 +184,10 @@ export interface Game {
 	queenBeeReached: boolean;
 	revealAnswers: boolean;
 
-	mouseX: number;
-	mouseY: number;
-	mouseDown: boolean;
+	pointerX: number;
+	pointerY: number;
+	pointerDown: PointerData | null;
+	pointerUp: PointerData | null;
 
 	clickedHex: number | null;
 	clickedHexTime: DOMHighResTimeStamp | null;

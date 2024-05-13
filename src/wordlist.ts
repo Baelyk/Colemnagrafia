@@ -1,3 +1,4 @@
+import { Interaction, interacted, interacting } from "./listen";
 import { type Game, main } from "./main";
 import { COLORS, FONTS, SIZES, getTextHeight, scrolling } from "./utils";
 
@@ -24,8 +25,8 @@ export function wordlist(_time: DOMHighResTimeStamp, game: Game) {
 	game.ctx.fill();
 	game.ctx.stroke();
 
-	if (game.mouseDown && game.ctx.isPointInPath(game.mouseX, game.mouseY)) {
-		game.mouseDown = false;
+	if (interacting(game, Interaction.Up)) {
+		interacted(game);
 		game.wordlistIsOpen = !game.wordlistIsOpen;
 		window.requestAnimationFrame((time) => main(time, game));
 	}

@@ -1,3 +1,4 @@
+import { Interaction, interacted, interacting } from "./listen";
 import { logo } from "./logo";
 import { type Game, main } from "./main";
 import { COLORS, FONTS, SIZES, shrinkFontSizeToFit, wrapText } from "./utils";
@@ -78,8 +79,8 @@ export function splashScreen(_time: DOMHighResTimeStamp, game: Game): boolean {
 	);
 
 	// Any tap dismisses the splashScreen
-	if (game.mouseDown) {
-		game.mouseDown = false;
+	if (interacting(game, Interaction.AnyDown)) {
+		interacted(game);
 		game.splashScreenText = null;
 		requestAnimationFrame((time) => main(time, game));
 		return false;

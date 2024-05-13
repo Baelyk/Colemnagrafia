@@ -1,3 +1,4 @@
+import { Interaction, interacted, interacting } from "./listen";
 import { type Game, main } from "./main";
 import { submitWord } from "./puzzle";
 import { COLORS, FONTS, SIZES } from "./utils";
@@ -24,19 +25,14 @@ export function controls(_time: DOMHighResTimeStamp, game: Game) {
 		controlRadius,
 	);
 	game.ctx.fillStyle = COLORS.bg(game);
-	if (
-		!game.wordlistIsOpen &&
-		game.ctx.isPointInPath(game.mouseX, game.mouseY)
-	) {
-		if (game.mouseDown) {
-			game.mouseDown = false;
-			game.ctx.fillStyle = COLORS.darkgray(game);
-			game.puzzle.word = game.puzzle.word.substring(
-				0,
-				game.puzzle.word.length - 1,
-			);
-			window.requestAnimationFrame((time) => main(time, game));
-		}
+	if (interacting(game, Interaction.Down)) {
+		interacted(game);
+		game.ctx.fillStyle = COLORS.darkgray(game);
+		game.puzzle.word = game.puzzle.word.substring(
+			0,
+			game.puzzle.word.length - 1,
+		);
+		window.requestAnimationFrame((time) => main(time, game));
 	}
 	game.ctx.lineWidth = 1;
 	game.ctx.stroke();
@@ -48,19 +44,14 @@ export function controls(_time: DOMHighResTimeStamp, game: Game) {
 	game.ctx.beginPath();
 	game.ctx.arc(game.width / 2, controlY, controlRadius, 0, 2 * Math.PI);
 	game.ctx.fillStyle = COLORS.bg(game);
-	if (
-		!game.wordlistIsOpen &&
-		game.ctx.isPointInPath(game.mouseX, game.mouseY)
-	) {
-		if (game.mouseDown) {
-			game.mouseDown = false;
-			game.ctx.fillStyle = COLORS.darkgray(game);
-			game.puzzle.letters = game.puzzle.letters
-				.map((letter, i) => ({ letter, sort: i === 0 ? 0 : Math.random() }))
-				.sort((a, b) => a.sort - b.sort)
-				.map(({ letter }) => letter);
-			window.requestAnimationFrame((time) => main(time, game));
-		}
+	if (interacting(game, Interaction.Down)) {
+		interacted(game);
+		game.ctx.fillStyle = COLORS.darkgray(game);
+		game.puzzle.letters = game.puzzle.letters
+			.map((letter, i) => ({ letter, sort: i === 0 ? 0 : Math.random() }))
+			.sort((a, b) => a.sort - b.sort)
+			.map(({ letter }) => letter);
+		window.requestAnimationFrame((time) => main(time, game));
 	}
 	game.ctx.lineWidth = 1;
 	game.ctx.stroke();
@@ -129,18 +120,13 @@ export function controls(_time: DOMHighResTimeStamp, game: Game) {
 		controlRadius,
 	);
 	game.ctx.fillStyle = COLORS.bg(game);
-	if (
-		!game.wordlistIsOpen &&
-		game.ctx.isPointInPath(game.mouseX, game.mouseY)
-	) {
-		if (game.mouseDown) {
-			game.mouseDown = false;
-			game.ctx.fillStyle = COLORS.darkgray(game);
+	if (interacting(game, Interaction.Down)) {
+		interacted(game);
+		game.ctx.fillStyle = COLORS.darkgray(game);
 
-			submitWord(game);
+		submitWord(game);
 
-			window.requestAnimationFrame((time) => main(time, game));
-		}
+		window.requestAnimationFrame((time) => main(time, game));
 	}
 	game.ctx.lineWidth = 1;
 	game.ctx.stroke();

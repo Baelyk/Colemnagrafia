@@ -1,3 +1,4 @@
+import { Interaction, interacted, interacting } from "./listen";
 import { type Game, main } from "./main";
 import {
 	COLORS,
@@ -32,8 +33,8 @@ export function hints(
 	game.ctx.stroke();
 
 	// Detect interaction
-	if (game.mouseDown && game.ctx.isPointInPath(game.mouseX, game.mouseY)) {
-		game.mouseDown = false;
+	if (interacting(game, Interaction.Down)) {
+		interacted(game);
 		game.hintsOpen = !game.hintsOpen;
 
 		window.requestAnimationFrame((time) => main(time, game));
@@ -149,10 +150,10 @@ export function hints(
 		const tableHeight = cellSize * (letters.length + 2);
 
 		// Both being true means the user just started scrolling (or tapping)
-		if (game.mouseDown && game.hintsTableUserIsScrolling) {
+		if (game.pointerDown != null && game.hintsTableUserIsScrolling) {
 			game.ctx.beginPath();
 			game.ctx.rect(0, tableY, tableWidth, tableHeight);
-			if (!game.ctx.isPointInPath(game.mouseX, game.mouseY)) {
+			if (!interacting(game, Interaction.Hover)) {
 				// Pointer isn't inside the table, so don't scroll table
 				game.hintsTableUserIsScrolling = false;
 			}
@@ -215,7 +216,7 @@ export function hints(
 						SIZES.teeny(game),
 					);
 					// Detect interaction
-					if (game.ctx.isPointInPath(game.mouseX, game.mouseY)) {
+					if (interacting(game, Interaction.Hover)) {
 						interactingWithBox = { letter, count };
 						game.ctx.fillStyle = COLORS.darkyellow(game);
 					} else {
@@ -330,7 +331,7 @@ export function hints(
 				SIZES.teeny(game),
 			);
 			// Detect interaction
-			if (game.ctx.isPointInPath(game.mouseX, game.mouseY)) {
+			if (interacting(game, Interaction.Hover)) {
 				interactingWithBox = { letter: start, count };
 				game.ctx.fillStyle = COLORS.darkyellow(game);
 			} else {
@@ -377,12 +378,10 @@ export function hints(
 			game.ctx.stroke();
 
 			const { letter, count } = interactingWithBox;
-			const firstLine = `There ${
-				count === 1 ? "is" : "are"
-			} ${count} more word${count === 1 ? "" : "s"}`;
-			const secondLine = `that start${
-				count === 1 ? "s" : ""
-			} with ${letter.toUpperCase()}.`;
+			const firstLine = `There ${count === 1 ? "is" : "are"
+				} ${count} more word${count === 1 ? "" : "s"}`;
+			const secondLine = `that start${count === 1 ? "s" : ""
+				} with ${letter.toUpperCase()}.`;
 
 			game.ctx.fillStyle = COLORS.fg(game);
 			game.ctx.font = `${SIZES.tiny(game)}px ${FONTS.default}`;

@@ -1,13 +1,101 @@
 import { DEBUG, type Game, main } from "./main";
 import { submitWord } from "./puzzle";
-import { resizeCanvas } from "./utils";
+import { SIZES, resizeCanvas } from "./utils";
+
+export interface PointerData {
+	x: number;
+	y: number;
+	time: DOMHighResTimeStamp | null;
+}
+
+export enum Interaction {
+	/** Interaction for a pointer down anywhere */
+	AnyDown = "anydown",
+	/** Interaction for a pointer down inside the current path */
+	Down = "down",
+	/** Interaction for a pointer inside the current path (not necessarily down) */
+	Hover = "hover",
+	/** Interaction for the pointer Down and then Up inside the current path */
+	Up = "up",
+}
+
+/**
+ * Return if the pointer is interacting with the current path
+ */
+export function interacting(game: Game, interaction: Interaction): boolean {
+	if (game.pointerUp != null || interaction === Interaction.Up) {
+		if (game.pointerDown == null) {
+			// Pointer down is null, which means the pointer moved to much, i.e. the
+			// user ended up scrolling
+			return false;
+		}
+		if (game.pointerUp == null) {
+			// Pointer is not up yet
+			return false;
+		}
+		// If the pointer didn't move much in going Down to Up, check if the Down
+		// happened inside the path. If so, this is indeed an Interaction.Up
+		const pointerDelta = Math.hypot(
+			game.pointerUp.x - game.pointerDown.x,
+			game.pointerUp.y - game.pointerDown.y,
+		);
+		if (pointerDelta < SIZES.small(game)) {
+			return game.ctx.isPointInPath(game.pointerDown.x, game.pointerDown.y);
+		}
+
+		return false;
+	} else if (interaction === Interaction.Down) {
+		if (game.pointerDown == null) {
+			return false;
+		}
+		return game.ctx.isPointInPath(game.pointerDown.x, game.pointerDown.y);
+	} else if (interaction == Interaction.AnyDown) {
+		return game.pointerDown != null;
+	} else if (interaction == Interaction.Hover) {
+		return game.ctx.isPointInPath(game.pointerX, game.pointerY);
+	}
+	console.error(
+		"Unknown interaction state",
+		game.pointerDown,
+		game.pointerUp,
+		interaction,
+	);
+	return false;
+}
+
+/**
+ * Update the Game object to indicated something has been interacted with, and
+ * prevent additional interactions with the same pointer event.
+ */
+export function interacted(game: Game) {
+	game.pointerDown = null;
+	game.pointerUp = null;
+}
+
+/**
+ * If the pointer has gone through a down and up cycle without being marked as
+ * interacted, mark it as interacted now to reset interaction state.
+ */
+export function gobbleMissedInteractions(game: Game) {
+	if (game.pointerDown != null && game.pointerUp != null) {
+		game.pointerDown = null;
+		game.pointerUp = null;
+	}
+}
 
 export function listen(game: Game) {
 	window.addEventListener("pointerdown", (event) => {
 		if (DEBUG.eventLogging) console.log("pointerdown");
-		game.mouseX = event.clientX * game.scaling;
-		game.mouseY = event.clientY * game.scaling;
-		game.mouseDown = true;
+		// Remove pointerUp and set pointerDown to reset interaction state
+		game.pointerUp = null;
+		game.pointerDown = {
+			x: event.clientX * game.scaling,
+			y: event.clientY * game.scaling,
+			time: null,
+		};
+		game.pointerX = event.clientX * game.scaling;
+		game.pointerY = event.clientY * game.scaling;
+
 		game.wordMessage = null;
 
 		if (game.wordlistIsOpen) {
@@ -44,68 +132,69 @@ export function listen(game: Game) {
 	window.addEventListener("pointermove", (event) => {
 		if (DEBUG.eventLogging) console.log("pointermove");
 
-		// On touchscreens, mouseDown means interacting, not scrolling
-		if (event.pointerType === "touch" && game.mouseDown) {
-			return;
-		}
-
-		// Update the game's mouseX and Y
-		game.mouseX = event.clientX * game.scaling;
-		game.mouseY = event.clientY * game.scaling;
-		// If the pointer is moving, its not interacting
-		game.mouseDown = false;
+		// Update the game's pointerX and Y
+		game.pointerX = event.clientX * game.scaling;
+		game.pointerY = event.clientY * game.scaling;
 		window.requestAnimationFrame((time) => main(time, game));
 
-		if (event.pointerType === "mouse") {
-			// Now, return if the mouse button is not down
-			if (event.pressure < 0.5) {
+		if (game.pointerDown != null) {
+			const pointerDelta = Math.hypot(
+				game.pointerX - game.pointerDown.x,
+				game.pointerY - game.pointerDown.y,
+			);
+			// If the pointer has not moved much, it's just jitter, not movement
+			if (pointerDelta <= SIZES.tiny(game)) {
 				return;
 			}
 		}
 
-		// Handle scrolling
-		if (game.wordlistIsOpen) {
-			game.wordlistScroll -= event.movementY;
-			game.wordlistScrollSpeed = event.movementY;
-			game.wordlistUserIsScrolling = true;
-		}
-		if (game.hintsOpen) {
-			if (game.hintsTableUserIsScrolling) {
-				if (Math.abs(event.movementY) - Math.abs(event.movementX) > 2) {
-					// User is scrolling in the table, but y-scrolling is greater than
-					// x-scrolling, so only scroll the hints page
-					game.hintsTableUserIsScrolling = false;
+		// Handle scrolling when pointer is a touch or the pointer is down, ignoring
+		// e.g. mouse movements
+		if (event.pointerType === "touch" || event.pressure >= 0.5) {
+			if (game.wordlistIsOpen) {
+				game.wordlistScroll -= event.movementY;
+				game.wordlistScrollSpeed = event.movementY;
+				game.wordlistUserIsScrolling = true;
+			}
+			if (game.hintsOpen) {
+				if (game.hintsTableUserIsScrolling) {
+					if (Math.abs(event.movementY) - Math.abs(event.movementX) > 2) {
+						// User is scrolling in the table, but y-scrolling is greater than
+						// x-scrolling, so only scroll the hints page
+						game.hintsTableUserIsScrolling = false;
+					} else {
+						// User is scrolling in the table
+						game.hintsUserIsScrolling = false;
+					}
 				} else {
-					// User is scrolling in the table
-					game.hintsUserIsScrolling = false;
+					game.hintsUserIsScrolling = true;
 				}
-			} else {
-				game.hintsUserIsScrolling = true;
-			}
 
-			if (game.hintsUserIsScrolling) {
-				game.hintsScroll -= event.movementY;
-				game.hintsScrollSpeed = event.movementY;
-				game.hintsUserIsScrolling = true;
-			}
-			if (game.hintsTableUserIsScrolling) {
-				game.hintsTableScroll -= event.movementX;
-				game.hintsTableScrollSpeed = event.movementX;
-				game.hintsTableUserIsScrolling = true;
+				if (game.hintsUserIsScrolling) {
+					game.hintsScroll -= event.movementY;
+					game.hintsScrollSpeed = event.movementY;
+					game.hintsUserIsScrolling = true;
+				}
+				if (game.hintsTableUserIsScrolling) {
+					game.hintsTableScroll -= event.movementX;
+					game.hintsTableScrollSpeed = event.movementX;
+					game.hintsTableUserIsScrolling = true;
+				}
 			}
 		}
 	});
 
-	window.addEventListener("pointerup", (_event) => {
+	window.addEventListener("pointerup", (event) => {
 		if (DEBUG.eventLogging) console.log("pointerup");
+		// Add pointerUp, but do not remove pointerDown
+		game.pointerUp = {
+			x: event.clientX * game.scaling,
+			y: event.clientY * game.scaling,
+			time: null,
+		};
 
 		if (game.wordlistIsOpen) {
 			game.wordlistUserIsScrolling = false;
-			// If the wordlist is open and the user has lifted the pointer (anywhere), close the wordlist
-			if (game.mouseDown) {
-				game.mouseDown = false;
-				game.wordlistIsOpen = false;
-			}
 		}
 		if (game.hintsOpen) {
 			game.hintsUserIsScrolling = false;

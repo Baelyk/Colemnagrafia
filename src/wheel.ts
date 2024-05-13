@@ -1,3 +1,4 @@
+import { Interaction, interacted, interacting } from "./listen";
 import { type Game, main } from "./main";
 import { COLORS, FONTS, SIZES, hexagon } from "./utils";
 
@@ -17,17 +18,12 @@ export function wheel(time: DOMHighResTimeStamp, game: Game) {
 	const centerY = game.height - hexRadius * 4.5;
 	hexagon(game.ctx, centerX, centerY, hexRadius);
 	game.ctx.fillStyle = COLORS.yellow(game);
-	if (
-		!game.wordlistIsOpen &&
-		game.ctx.isPointInPath(game.mouseX, game.mouseY)
-	) {
-		if (game.mouseDown) {
-			game.mouseDown = false;
-			game.clickedHex = 0;
-			game.clickedHexTime = time;
-			clicked = game.puzzle.letters[0];
-			game.ctx.fillStyle = COLORS.darkyellow(game);
-		}
+	if (interacting(game, Interaction.Down)) {
+		interacted(game);
+		game.clickedHex = 0;
+		game.clickedHexTime = time;
+		clicked = game.puzzle.letters[0];
+		game.ctx.fillStyle = COLORS.darkyellow(game);
 	}
 	if (game.clickedHex === 0 && game.clickedHexTime != null) {
 		const duration = 200;
@@ -57,17 +53,12 @@ export function wheel(time: DOMHighResTimeStamp, game: Game) {
 		const y = centerY + Math.sin(radians * i + radians / 2) * radius;
 		hexagon(game.ctx, x, y, hexRadius);
 		game.ctx.fillStyle = COLORS.gray(game);
-		if (
-			!game.wordlistIsOpen &&
-			game.ctx.isPointInPath(game.mouseX, game.mouseY)
-		) {
-			if (game.mouseDown) {
-				game.mouseDown = false;
-				game.clickedHex = i;
-				game.clickedHexTime = time;
-				clicked = game.puzzle.letters[i];
-				game.ctx.fillStyle = COLORS.darkgray(game);
-			}
+		if (interacting(game, Interaction.Down)) {
+			interacted(game);
+			game.clickedHex = i;
+			game.clickedHexTime = time;
+			clicked = game.puzzle.letters[i];
+			game.ctx.fillStyle = COLORS.darkgray(game);
 		}
 		if (game.clickedHex === i && game.clickedHexTime != null) {
 			const duration = 200;

@@ -63,7 +63,8 @@ export async function getPuzzle(game: Game, forceNewPuzzle?: "daily" | "new") {
 	game.queenBeeReached = false;
 
 	if (DEBUG.foundAllWords) {
-		for (const word of Object.values(game.puzzle.words).flat()) {
+		const words = Object.values(game.puzzle.lemmas).flat();
+		for (const word of words) {
 			submitWord(game, word);
 		}
 	}
@@ -79,7 +80,8 @@ export async function restartPuzzle(game: Game) {
 	game.queenBeeReached = false;
 
 	if (DEBUG.foundAllWords) {
-		for (const word of Object.values(game.puzzle.words).flat()) {
+		const words = Object.values(game.puzzle.lemmas).flat();
+		for (const word of words) {
 			submitWord(game, word);
 		}
 	}

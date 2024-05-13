@@ -1,3 +1,4 @@
+import { Interaction, interacting } from "./listen";
 import { type Game, main } from "./main";
 import { COLORS, FONTS, SIZES } from "./utils";
 
@@ -91,7 +92,7 @@ export function scorebar(_time: DOMHighResTimeStamp, game: Game) {
 		game.ctx.arc(tickX, scorebarY, SIZES.tiny(game), 0, 2 * Math.PI);
 		if (
 			interactingWithTick === undefined &&
-			game.ctx.isPointInPath(game.mouseX, game.mouseY)
+			interacting(game, Interaction.Hover)
 		) {
 			interactingWithTick = true;
 			// Increase radius of tick when interacting

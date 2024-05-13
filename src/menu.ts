@@ -1,4 +1,5 @@
 import { hints } from "./hints";
+import { Interaction, interacted, interacting } from "./listen";
 import { type Game, main } from "./main";
 import { getPuzzle, restartPuzzle } from "./puzzle";
 import { COLORS, FONTS, SIZES, getTextHeight } from "./utils";
@@ -48,8 +49,8 @@ function menu(
 		// Detect interaction
 		game.ctx.beginPath();
 		game.ctx.rect(menuX, menuY, menuWidth, menuHeight);
-		if (game.mouseDown && game.ctx.isPointInPath(game.mouseX, game.mouseY)) {
-			game.mouseDown = false;
+		if (interacting(game, Interaction.Down)) {
+			interacted(game);
 			game.menuOpen = true;
 
 			window.requestAnimationFrame((time) => main(time, game));
@@ -124,8 +125,8 @@ function menu(
 				menuButtonHeight,
 				SIZES.teeny(game),
 			);
-			if (game.mouseDown && game.ctx.isPointInPath(game.mouseX, game.mouseY)) {
-				game.mouseDown = false;
+			if (interacting(game, Interaction.Down)) {
+				interacted(game);
 
 				menuOptionAction();
 
@@ -147,8 +148,8 @@ function menu(
 		});
 
 		// Any interaction not on a menu option closes the menu
-		if (game.mouseDown) {
-			game.mouseDown = false;
+		if (interacting(game, Interaction.AnyDown)) {
+			interacted(game);
 			game.menuOpen = false;
 
 			window.requestAnimationFrame((time) => main(time, game));
