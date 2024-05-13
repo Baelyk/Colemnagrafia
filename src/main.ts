@@ -17,7 +17,7 @@ declare global {
 
 export const DEBUG = {
 	allowAnyWord: false,
-	foundAllWords: false,
+	foundAllWords: true,
 	eventLogging: false,
 };
 
@@ -32,21 +32,41 @@ export function main(time: DOMHighResTimeStamp, game: Game) {
 
 function components(time: DOMHighResTimeStamp, game: Game) {
 	if (game.errorText != null) {
-		error(time, game);
+		try {
+			error(time, game);
+		} catch (error) {
+			console.error(`Error during component \`error\``);
+			console.error(error);
+		}
 		return;
 	}
 
 	// If there is no puzzle, display a loading message in the splash screen
 	if (game.puzzle.letters.length === 0) {
-		loading(time, game);
+		try {
+			loading(time, game);
+		} catch (error) {
+			console.error(`Error during component \`loading\`: ${error}`);
+			console.error(error);
+		}
 	}
 
-	const showingSplashScreen = splashScreen(time, game);
-	if (showingSplashScreen) {
-		return;
+	try {
+		const showingSplashScreen = splashScreen(time, game);
+		if (showingSplashScreen) {
+			return;
+		}
+	} catch (error) {
+		console.error(`Error during component \`splashScreen\`: ${error}`);
+		console.error(error);
 	}
 
-	menuBar(time, game);
+	try {
+		menuBar(time, game);
+	} catch (error) {
+		console.error(`Error during component \`menuBar\`: ${error}`);
+		console.error(error);
+	}
 	if (game.menuOpen) {
 		return;
 	}
@@ -54,19 +74,44 @@ function components(time: DOMHighResTimeStamp, game: Game) {
 		return;
 	}
 
-	scorebar(time, game);
+	try {
+		scorebar(time, game);
+	} catch (error) {
+		console.error(`Error during component \`scorebar\`: ${error}`);
+		console.error(error);
+	}
 
-	wordlist(time, game);
+	try {
+		wordlist(time, game);
+	} catch (error) {
+		console.error(`Error during component \`wordlist\`: ${error}`);
+		console.error(error);
+	}
 	if (game.wordlistIsOpen) {
 		return;
 	}
 
-	const clicked = wheel(time, game);
-	game.puzzle.word += clicked;
+	try {
+		const clicked = wheel(time, game);
+		game.puzzle.word += clicked;
+	} catch (error) {
+		console.error(`Error during component \`wheel\`: ${error}`);
+		console.error(error);
+	}
 
-	word(time, game);
+	try {
+		word(time, game);
+	} catch (error) {
+		console.error(`Error during component \`word\`: ${error}`);
+		console.error(error);
+	}
 
-	controls(time, game);
+	try {
+		controls(time, game);
+	} catch (error) {
+		console.error(`Error during component \`controls\`: ${error}`);
+		console.error(error);
+	}
 }
 
 /**
