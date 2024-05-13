@@ -48,7 +48,7 @@ export function wordlist(_time: DOMHighResTimeStamp, game: Game) {
 		let list = [...game.puzzle.found];
 		if (game.revealAnswers) {
 			// Revealing answers, so show all words
-			list = Object.values(game.puzzle.words).flat();
+			list = Object.values(game.puzzle.lemmas).flat();
 		}
 		list.sort((a, b) => a.localeCompare(b));
 
