@@ -17,7 +17,7 @@ declare global {
 
 export const DEBUG = {
 	allowAnyWord: false,
-	foundAllWords: true,
+	foundAllWords: false,
 	eventLogging: false,
 };
 
