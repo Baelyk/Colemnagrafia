@@ -32,7 +32,7 @@ export function scorebar(_time: DOMHighResTimeStamp, game: Game) {
 			"Genius 🧠",
 			"Look at you go, you're quite the genius bee!",
 		];
-		game.queenBeeReached = true;
+		game.geniusReached = true;
 		window.requestAnimationFrame((time) => main(time, game));
 	}
 
