@@ -180,18 +180,18 @@ export const es: Lang = {
 				if (total === 1) {
 					text = "¡Encontraste la pangrama! Fue la única.";
 				} else {
-					text = `¡Encontraste todas las pangramas! Había ${total} al fin`;
+					text = `¡Encontraste todas las pangramas! Había ${total} al fin.`;
 				}
 			} else {
 				if (remaining === 1) {
 					text = "Queda una pangrama más";
 				} else {
-					text = `Quedan ${remaining} más pangramas`;
+					text = `Quedan ${remaining} otras pangramas más`;
 				}
 				if (total === 1) {
 					text += " y es la única";
 				} else {
-					text += `, de ${total} pangramas en todo.`;
+					text += `, de ${total} pangramas en total.`;
 				}
 				if (found === 0) {
 					if (total === 1) {
