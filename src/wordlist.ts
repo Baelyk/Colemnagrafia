@@ -1,13 +1,6 @@
 import { Interaction, interacted, interacting } from "./listen";
 import { type Game, main } from "./main";
-import {
-	COLORS,
-	FONTS,
-	SIZES,
-	getTextHeight,
-	removeAccents,
-	scrolling,
-} from "./utils";
+import { COLORS, FONTS, SIZES, getTextHeight, scrolling } from "./utils";
 
 export function wordlist(_time: DOMHighResTimeStamp, game: Game) {
 	const wordlistWidth = game.width - 2 * SIZES.tiny(game);
