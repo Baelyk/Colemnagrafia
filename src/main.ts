@@ -8,6 +8,7 @@ import { COLORS, resizeCanvas } from "./utils";
 import { wheel } from "./wheel";
 import { word } from "./word";
 import { wordlist } from "./wordlist";
+import { Lang, es } from "./lang";
 
 declare global {
 	interface Window {
@@ -173,6 +174,7 @@ export function init(): Game {
 		ctx,
 		tagName: "game",
 		darkMode,
+		lang: es,
 
 		errorText: null,
 		splashScreenText: null,
@@ -223,6 +225,7 @@ export interface Game {
 	ctx: CanvasRenderingContext2D;
 	tagName: "game";
 	darkMode: boolean;
+	lang: Lang;
 
 	errorText: string | null;
 	splashScreenText: [string, string] | null;
@@ -272,6 +275,8 @@ if (typeof window !== "undefined") {
 		}
 		// For debugging, log the game
 		console.debug(game);
+
+		document.title = game.lang.title;
 
 		try {
 			await getPuzzle(game);

@@ -108,7 +108,7 @@ export function submitWord(game: Game, word?: string, save = true) {
 		// The entered word has no accents, i.e. is normalized, so normalize the
 		// found words before checking if this word has already been found
 		if (game.puzzle.found.map(removeAccents).includes(enteredWord)) {
-			game.wordMessage = "Already found";
+			game.wordMessage = game.lang.puzzle.alreadyFound;
 		} else {
 			let count = 0;
 			let score = 0;
@@ -144,13 +144,13 @@ export function submitWord(game: Game, word?: string, save = true) {
 		}
 	} else {
 		if (enteredWord.length < 4) {
-			game.wordMessage = "Too short";
+			game.wordMessage = game.lang.puzzle.tooShort;
 		} else if (
 			![...enteredWord].some((l) => l.toUpperCase() === game.puzzle.letters[0])
 		) {
-			game.wordMessage = "Missing center letter";
+			game.wordMessage = game.lang.puzzle.missingCenter;
 		} else {
-			game.wordMessage = "Not in word list";
+			game.wordMessage = game.lang.puzzle.notInList;
 		}
 	}
 }

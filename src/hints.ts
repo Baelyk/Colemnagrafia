@@ -54,7 +54,7 @@ export function hints(
 		game.ctx.textBaseline = "top";
 		const hintsHeader = "hints";
 		game.ctx.font = `bold ${SIZES.medium(game)}px ${FONTS.word}`;
-		game.ctx.fillText("Hints", menuBarPadding, hintsY);
+		game.ctx.fillText(game.lang.hints.title, menuBarPadding, hintsY);
 		hintsY += getTextHeight(game.ctx, hintsHeader);
 
 		// Clip to only display text inside the wordlist
@@ -75,34 +75,10 @@ export function hints(
 		);
 		hintsY -= game.hintsScroll;
 
-		const remainingPangrams =
-			game.hintsPuzzle.pangrams - game.hintsFound.pangrams;
-		let hintsPangramText = "";
-		if (remainingPangrams === 0) {
-			if (game.hintsPuzzle.pangrams === 1) {
-				hintsPangramText = "You found the pangram! That was the only one.";
-			} else {
-				hintsPangramText = `You found all the pangrams! There were ${game.hintsPuzzle.pangrams} in all.`;
-			}
-		} else {
-			if (remainingPangrams === 1) {
-				hintsPangramText = "There's one more pangram";
-			} else {
-				hintsPangramText = `There are ${remainingPangrams} more pangrams`;
-			}
-			if (game.hintsPuzzle.pangrams === 1) {
-				hintsPangramText += " and that's the only one.";
-			} else {
-				hintsPangramText += `, out of ${game.hintsPuzzle.pangrams} pangrams overall.`;
-			}
-			if (game.hintsFound.pangrams === 0) {
-				if (game.hintsPuzzle.pangrams === 1) {
-					hintsPangramText += " You haven't found it yet 😞.";
-				} else {
-					hintsPangramText += " You haven't found any yet 😞.";
-				}
-			}
-		}
+		const hintsPangramText = game.lang.hints.pangrams(
+			game.hintsPuzzle.pangrams,
+			game.hintsFound.pangrams,
+		);
 		game.ctx.font = `${SIZES.tiny(game)}px ${FONTS.default}`;
 		const hintsPangramTextHeight = wrapText(
 			game.ctx,
@@ -118,7 +94,7 @@ export function hints(
 		game.ctx.fillStyle = COLORS.fg(game);
 		game.ctx.textAlign = "left";
 		game.ctx.textBaseline = "top";
-		const remainingWordsHeader = "Remaining words";
+		const remainingWordsHeader = game.lang.hints.remainingWords;
 		game.ctx.font = `bold ${SIZES.small(game)}px ${FONTS.word}`;
 		game.ctx.fillText(remainingWordsHeader, menuBarPadding, hintsY);
 		hintsY +=
@@ -182,7 +158,7 @@ export function hints(
 			);
 		}
 		game.ctx.fillText(
-			"To.",
+			game.lang.hints.totalAbbreviation,
 			tableX + cellSize / 2 + cellSize * (lengths.length + 1),
 			tableY + cellSize / 2,
 		);
@@ -257,7 +233,10 @@ export function hints(
 		game.ctx.font = `${SIZES.tiny(game)}px ${FONTS.word}`;
 		for (let j = -1; j < lengths.length; j++) {
 			game.ctx.fillText(
-				(j === -1 ? "To." : lengthsTotals[j] || "").toString(),
+				(j === -1
+					? game.lang.hints.totalAbbreviation
+					: lengthsTotals[j] || ""
+				).toString(),
 				tableX + cellSize / 2 + cellSize * (j + 1),
 				tableY + cellSize / 2 + cellSize * (letters.length + 1),
 			);
@@ -281,7 +260,7 @@ export function hints(
 		game.ctx.fillStyle = COLORS.fg(game);
 		game.ctx.textAlign = "left";
 		game.ctx.textBaseline = "top";
-		const remainingStartsHeader = "Remaining starts";
+		const remainingStartsHeader = game.lang.hints.remainingStarts;
 		game.ctx.font = `bold ${SIZES.small(game)}px ${FONTS.word}`;
 		game.ctx.fillText(remainingStartsHeader, menuBarPadding, hintsY);
 		hintsY +=
@@ -382,26 +361,17 @@ export function hints(
 			game.ctx.stroke();
 
 			const { letter, count } = interactingWithBox;
-			const firstLine = `There ${count === 1 ? "is" : "are"
-				} ${count} more word${count === 1 ? "" : "s"}`;
-			const secondLine = `that start${count === 1 ? "s" : ""
-				} with ${letter.toUpperCase()}.`;
+			const tooltipText = game.lang.hints.tooltip(letter, count);
 
 			game.ctx.fillStyle = COLORS.fg(game);
 			game.ctx.font = `${SIZES.tiny(game)}px ${FONTS.default}`;
 			game.ctx.textAlign = "center";
-
-			game.ctx.textBaseline = "bottom";
-			game.ctx.fillText(
-				firstLine,
+			wrapText(
+				game.ctx,
+				tooltipText,
 				game.width / 2,
 				interactiveY + interactiveHeight / 2,
-			);
-			game.ctx.textBaseline = "top";
-			game.ctx.fillText(
-				secondLine,
-				game.width / 2,
-				interactiveY + interactiveHeight / 2,
+				interactiveWidth - SIZES.big(game),
 			);
 		}
 

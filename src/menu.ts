@@ -69,7 +69,7 @@ function menu(
 
 		const menuOptions: [string, () => void][] = [
 			[
-				"Restart",
+				game.lang.menu.restart,
 				() => {
 					restartPuzzle(game);
 					game.menuOpen = false;
@@ -78,7 +78,7 @@ function menu(
 				},
 			],
 			[
-				"Check for new puzzle",
+				game.lang.menu.new,
 				() => {
 					getPuzzle(game, "daily");
 					game.menuOpen = false;
@@ -87,7 +87,7 @@ function menu(
 				},
 			],
 			[
-				game.revealAnswers ? "Stop revealing answers" : "Reveal answers",
+				game.lang.menu.reveal(game.revealAnswers),
 				() => {
 					game.revealAnswers = !game.revealAnswers;
 					if (game.revealAnswers) {
@@ -99,7 +99,7 @@ function menu(
 				},
 			],
 			[
-				`${game.darkMode ? "Light" : "Dark"} mode`,
+				game.lang.menu.darkMode(game.darkMode),
 				() => {
 					game.darkMode = !game.darkMode;
 					game.menuOpen = false;

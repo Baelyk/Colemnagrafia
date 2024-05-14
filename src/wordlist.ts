@@ -83,9 +83,7 @@ export function wordlist(_time: DOMHighResTimeStamp, game: Game) {
 		game.ctx.font = `bold ${SIZES.tiny(game)}px ${FONTS.default}`;
 		game.ctx.fillStyle = COLORS.fg(game);
 		game.ctx.fillText(
-			`${game.puzzle.found.length} word${
-				game.puzzle.found.length === 1 ? "" : "s"
-			} found`,
+			game.lang.wordlist.foundCount(game.puzzle.found.length),
 			leftX - SIZES.tiny(game),
 			textY,
 		);
@@ -119,8 +117,7 @@ export function wordlist(_time: DOMHighResTimeStamp, game: Game) {
 				const delta =
 					game.puzzle.forms[lemma].length -
 					(lemmasFound.get(lemma)?.length ?? 0);
-				const more = delta > 0 ? ` (${delta} remaining)` : " (all found)";
-				text = `${lemma}${more}`;
+				text = `${lemma}${game.lang.wordlist.lemmaRemaining(delta)}`;
 
 				game.ctx.beginPath();
 				game.ctx.roundRect(

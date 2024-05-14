@@ -2,23 +2,14 @@ import { Interaction, interacting } from "./listen";
 import { type Game, main } from "./main";
 import { COLORS, FONTS, SIZES } from "./utils";
 
-const SCORERANKS: [number, string][] = [
-	[0, "Beginner"],
-	[0.02, "Good Start"],
-	[0.05, "Moving Up"],
-	[0.08, "Good"],
-	[0.15, "Solid"],
-	[0.25, "Nice"],
-	[0.4, "Great"],
-	[0.5, "Amazing"],
-	[0.7, "Genius"],
-	[1, "Queen Bee"],
+const SCORERANKS: number[] = [
+	0, 0.02, 0.05, 0.08, 0.15, 0.25, 0.4, 0.5, 0.7, 1,
 ];
 
 export function scorebar(_time: DOMHighResTimeStamp, game: Game) {
 	let rank =
 		SCORERANKS.findIndex(
-			([minScore, _]) =>
+			(minScore) =>
 				game.puzzle.score < Math.round(minScore * game.puzzle.maxScore),
 		) - 1;
 	// Rank is Queen Bee if no min score is < the score
@@ -28,20 +19,14 @@ export function scorebar(_time: DOMHighResTimeStamp, game: Game) {
 
 	if (rank === SCORERANKS.length - 2 && !game.geniusReached) {
 		// If Genius just reached, display the Genius splash screen
-		game.splashScreenText = [
-			"Genius 🧠",
-			"Look at you go, you're quite the genius bee!",
-		];
+		game.splashScreenText = game.lang.score.geniusSplashScreen;
 		game.geniusReached = true;
 		window.requestAnimationFrame((time) => main(time, game));
 	}
 
 	if (rank === SCORERANKS.length - 1 && !game.queenBeeReached) {
 		// If Queen Bee just reached, display the Queen Bee splash screen
-		game.splashScreenText = [
-			"Queen Bee 🐝",
-			"You're no simple busy bee, you're the Queen Bee 🐝! Amazing work finding all those words.",
-		];
+		game.splashScreenText = game.lang.score.queenBeeSplashScreen;
 		game.queenBeeReached = true;
 		window.requestAnimationFrame((time) => main(time, game));
 	}
@@ -53,14 +38,14 @@ export function scorebar(_time: DOMHighResTimeStamp, game: Game) {
 	const rankWidth =
 		SIZES.tiny(game) +
 		Math.max(
-			...SCORERANKS.map(([_, rank]) => game.ctx.measureText(rank).width),
+			...game.lang.score.ranks.map((rank) => game.ctx.measureText(rank).width),
 		);
 	const tickWidth =
 		(scorebarWidth - rankWidth - 2 * SIZES.teeny(game)) /
 		(SCORERANKS.length - 1);
 
 	// Score bar
-	let displayRank = SCORERANKS[rank][1];
+	let displayRank = game.lang.score.ranks[rank];
 	// Stroke achieved portion in yellow
 	game.ctx.beginPath();
 	game.ctx.moveTo(scorebarX + rankWidth, scorebarY);
@@ -115,12 +100,12 @@ export function scorebar(_time: DOMHighResTimeStamp, game: Game) {
 			// Display min score for rank if interacting
 			game.ctx.font = `${SIZES.tiny(game)}px ${FONTS.word}`;
 			game.ctx.fillText(
-				Math.round(game.puzzle.maxScore * SCORERANKS[i][0]).toString(),
+				Math.round(game.puzzle.maxScore * SCORERANKS[i]).toString(),
 				tickX,
 				scorebarY,
 			);
 			// Change rank to this tick's rank while interacting
-			displayRank = SCORERANKS[i][1];
+			displayRank = game.lang.score.ranks[i];
 		} else if (i === rank) {
 			// Display current score if this is the current rank
 			game.ctx.font = `bold ${SIZES.tiny(game)}px ${FONTS.word}`;

@@ -11,10 +11,14 @@ export function error(_time: DOMHighResTimeStamp, game: Game) {
 	game.ctx.textBaseline = "middle";
 	game.ctx.fillStyle = COLORS.fg(game);
 
-	game.ctx.fillText("Error", SIZES.small(game), SIZES.small(game));
+	game.ctx.fillText(
+		game.lang.error.title,
+		SIZES.small(game),
+		SIZES.small(game),
+	);
 	game.ctx.font = `${SIZES.tiny(game)}px ${FONTS.default}`;
 	game.ctx.fillText(
-		game.errorText || "Unknown error",
+		game.errorText || game.lang.error.unknown,
 		SIZES.small(game),
 		2 * SIZES.small(game) + SIZES.big(game),
 	);
@@ -30,8 +34,8 @@ export function loading(time: DOMHighResTimeStamp, game: Game) {
 
 	const dots = ".".repeat((time / 250) % 4);
 	game.splashScreenText = [
-		"Spelling Bee",
-		`Attempting to load in progress puzzle or create new puzzle ${dots}`,
+		game.lang.loading.title,
+		`${game.lang.loading.description}${dots}`,
 	];
 }
 

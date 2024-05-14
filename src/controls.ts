@@ -38,7 +38,11 @@ export function controls(_time: DOMHighResTimeStamp, game: Game) {
 	game.ctx.stroke();
 	game.ctx.fill();
 	game.ctx.fillStyle = COLORS.fg(game);
-	game.ctx.fillText("Delete", deleteX + controlWidth / 2, controlY);
+	game.ctx.fillText(
+		game.lang.controls.delete,
+		deleteX + controlWidth / 2,
+		controlY,
+	);
 
 	// Shuffle
 	game.ctx.beginPath();
@@ -132,5 +136,9 @@ export function controls(_time: DOMHighResTimeStamp, game: Game) {
 	game.ctx.stroke();
 	game.ctx.fill();
 	game.ctx.fillStyle = COLORS.fg(game);
-	game.ctx.fillText("Enter", enterX + controlWidth / 2, controlY);
+	game.ctx.fillText(
+		game.lang.controls.enter,
+		enterX + controlWidth / 2,
+		controlY,
+	);
 }
