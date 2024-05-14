@@ -18,25 +18,27 @@ pub fn generate_words_and_pangrams() -> (Vec<(String, String)>, Vec<String>) {
     elements
         .iter()
         .for_each(|(_, (element, lemma, category, freq, _, _))| {
-            if lemma == &String::from("??") {
+            if lemma == &String::from("??")
+                || unidecode::unidecode(lemma) != unidecode::unidecode(lemma).to_ascii_lowercase()
+            {
                 return;
             }
             // See if this is a valid word and common pangram
             let (valid, common_pangram) =
-                filter(&element, Some(&lemma), Some(*category), *freq, true);
+                filter(element, Some(lemma), Some(*category), *freq, true);
             if !valid {
                 // If not valid, do a last check to see if its valid using its lemma's frequency
                 let Some((_, _, _, lemma_freq, _, _)) = elements.get(lemma) else {
                     return;
                 };
                 let (valid_by_lemma, _) =
-                    filter(&element, Some(&lemma), Some(*category), *lemma_freq, true);
+                    filter(element, Some(lemma), Some(*category), *lemma_freq, true);
                 if !valid_by_lemma {
                     return;
                 }
             }
             if common_pangram {
-                pangrams.insert(unidecode::unidecode(&element));
+                pangrams.insert(unidecode::unidecode(element));
             }
             words.insert((element.to_string(), lemma.to_string()));
         });
