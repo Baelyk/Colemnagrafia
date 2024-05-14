@@ -125,7 +125,7 @@ export function wordlist(_time: DOMHighResTimeStamp, game: Game) {
 				game.ctx.fillStyle = COLORS.darkgray(game);
 				const delta =
 					game.puzzle.forms[lemma].length -
-					(lemmasFound.get(removeAccents(lemma))?.length ?? 0);
+					(lemmasFound.get(lemma)?.length ?? 0);
 				const more = delta > 0 ? ` (${delta} remaining)` : " (all found)";
 				text = `${lemma}${more}`;
 
