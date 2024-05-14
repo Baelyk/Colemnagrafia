@@ -10,9 +10,11 @@ export type WordMap = { [key: string]: string[] };
 
 export interface Puzzle {
 	letters: string[];
-	words: { [key: string]: string };
-	lemmas: WordMap;
+	words: WordMap;
+	lemmas: { [key: string]: string };
+	forms: WordMap;
 	pangrams: string[];
+
 	maxScore: number;
 	word: string;
 	found: string[];
@@ -22,7 +24,7 @@ export interface Puzzle {
 
 export type PuzzleData = Pick<
 	Puzzle,
-	"letters" | "words" | "lemmas" | "pangrams"
+	"letters" | "words" | "lemmas" | "forms" | "pangrams"
 >;
 
 export interface HintsData {
@@ -64,9 +66,9 @@ export async function getPuzzle(game: Game, forceNewPuzzle?: "daily" | "new") {
 	game.queenBeeReached = false;
 
 	if (DEBUG.foundAllWords) {
-		const words = Object.values(game.puzzle.lemmas).flat();
+		const words = Object.values(game.puzzle.words).flat();
 		for (const word of words) {
-			submitWord(game, word);
+			submitWord(game, word, false);
 		}
 	}
 
@@ -81,9 +83,9 @@ export async function restartPuzzle(game: Game) {
 	game.queenBeeReached = false;
 
 	if (DEBUG.foundAllWords) {
-		const words = Object.values(game.puzzle.lemmas).flat();
+		const words = Object.values(game.puzzle.words).flat();
 		for (const word of words) {
-			submitWord(game, word);
+			submitWord(game, word, false);
 		}
 	}
 
@@ -98,7 +100,7 @@ export async function savePuzzle(game: Game) {
 	}
 }
 
-export function submitWord(game: Game, word?: string) {
+export function submitWord(game: Game, word?: string, save = true) {
 	const enteredWord = removeAccents(word ?? game.puzzle.word.toLowerCase());
 	game.puzzle.word = "";
 
@@ -110,10 +112,8 @@ export function submitWord(game: Game, word?: string) {
 		} else {
 			let count = 0;
 			let score = 0;
-			const lemma = game.puzzle.words[enteredWord];
 			game.puzzle.justFound = [];
-			console.log(enteredWord, lemma);
-			for (const word of game.puzzle.lemmas[lemma]) {
+			for (const word of game.puzzle.words[enteredWord]) {
 				game.puzzle.found.unshift(word);
 				game.puzzle.justFound.unshift(word);
 				score += scoreWord(word, game.puzzle.pangrams);
@@ -130,14 +130,18 @@ export function submitWord(game: Game, word?: string) {
 			}
 			game.puzzle.score += score;
 			game.wordMessage = `+${score}${count > 1 ? ` for ${count}` : ""}`;
-			savePuzzle(game);
+			if (save) {
+				savePuzzle(game);
+			}
 		}
 	} else if (DEBUG.allowAnyWord) {
 		game.puzzle.found.unshift(enteredWord);
 		const score = scoreWord(enteredWord, game.puzzle.pangrams);
 		game.puzzle.score += score;
 		game.wordMessage = `+${score} !`;
-		savePuzzle(game);
+		if (save) {
+			savePuzzle(game);
+		}
 	} else {
 		if (enteredWord.length < 4) {
 			game.wordMessage = "Too short";
@@ -154,6 +158,7 @@ export function submitWord(game: Game, word?: string) {
 async function savePuzzleToStore(game: Game) {
 	console.log("Saving puzzle state");
 	const store = new Store("store.dat");
+	console.debug("To store", game.puzzle);
 	await store.set("puzzle", game.puzzle);
 	await store.set("hints-puzzle", serializeHints(game.hintsPuzzle));
 	await store.set("hints-found", serializeHints(game.hintsFound));
@@ -188,7 +193,7 @@ function getPuzzleHints(puzzle: Puzzle): [HintsData, HintsData] {
 
 	hintsPuzzle.pangrams = puzzle.pangrams.length;
 
-	const words = Object.values(puzzle.lemmas).flat();
+	const words = Object.values(puzzle.words).flat();
 
 	const maxLength = Math.max(...words.map((word) => word.length));
 	for (const letter of [...puzzle.letters].sort()) {
@@ -326,6 +331,7 @@ async function createDailyPuzzleFromFile(_day: string): Promise<Puzzle | null> {
 		// TypeScripts inferred type for words is wrong because it is intersection them, which means sometimes the map can have a key whose value is undefined, but this is not the case
 		words: puzzle.words,
 		lemmas: puzzle.lemmas,
+		forms: puzzle.forms,
 		pangrams: puzzle.pangrams,
 		maxScore: Object.values(puzzle.words)
 			.flat()
@@ -352,6 +358,7 @@ async function createDailyPuzzleFromTauri(day: string): Promise<Puzzle | null> {
 			letters: puzzle.letters.map((l) => l.toUpperCase()),
 			words: puzzle.words,
 			lemmas: puzzle.lemmas,
+			forms: puzzle.forms,
 			pangrams: puzzle.pangrams,
 			maxScore: Object.values(puzzle.words)
 				.flat()

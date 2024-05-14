@@ -10,8 +10,9 @@ use crate::Error;
 #[derive(Clone, Deserialize, Serialize)]
 pub struct Puzzle {
     letters: Vec<char>,
-    words: HashMap<String, String>,
-    lemmas: HashMap<String, HashSet<String>>,
+    words: HashMap<String, HashSet<String>>,
+    lemmas: HashMap<String, String>,
+    forms: HashMap<String, HashSet<String>>,
     pangrams: Vec<String>,
 }
 
@@ -36,7 +37,7 @@ pub fn create_puzzle_from_letters(letters: Vec<char>) -> Result<Puzzle, Error> {
                 letter_set.contains(&c)
             }) && contains_center
         })
-        .map(|(form, lema)| (form.to_string(), unidecode(lema)))
+        .map(|(form, lema)| (form.to_string(), lema.to_string()))
         .collect();
 
     let pangrams: Vec<String> = words
@@ -73,31 +74,32 @@ pub fn create_puzzle_from_letters(letters: Vec<char>) -> Result<Puzzle, Error> {
         letters
     );
 
-    // Map normalized form -> normalized lema for the lema map, will be used to take puzzle input,
-    // which will be normalized, to get the lema to use in the lema map to get all the associated
-    // forms (including e.g. papa and papá, which aren't associated lema wise but are associated
-    // accent wise.)
-    let mut word_map: HashMap<String, String> = HashMap::new();
-    // Map normalized lema -> all associated forms (e.g. papa includes papa and papá)
-    let mut lema_map: HashMap<String, HashSet<String>> = HashMap::new();
-    words.iter().for_each(|(form, lema)| {
-        // Get the stripped lema for this word by first checking if there is a stripped form in the
-        // words map, and using that lema (already stripped). Otherwise, use this word's lema
-        // (already stripped).
-        let stripped_lema = words.get(&unidecode(form)).unwrap_or(lema).to_string();
-        // Note this words stripped lema
-        word_map.insert(unidecode(form), stripped_lema.clone());
-        // Add this form to this stripped lema's form list
-        lema_map
-            .entry(stripped_lema)
+    // Map normalized word -> denormalized forms, e.g. papa -> [papa, papá]
+    let mut accent_map: HashMap<String, HashSet<String>> = HashMap::new();
+    // Map (*not* normalized) form -> lemma
+    let mut lemma_map: HashMap<String, String> = HashMap::new();
+    // Map lemma -> all associated forms
+    let mut forms_map: HashMap<String, HashSet<String>> = HashMap::new();
+    words.iter().for_each(|(form, lemma)| {
+        // Get the normalized form of this word for the accent map
+        let stripped = unidecode(form);
+        accent_map.entry(stripped).or_default().insert(form.clone());
+
+        // Map this form to its lemma
+        lemma_map.insert(form.clone(), lemma.clone());
+
+        // Add this form to its lemma's list of forms
+        forms_map
+            .entry(lemma.clone())
             .or_default()
-            .insert(form.to_string());
+            .insert(form.clone());
     });
 
     Ok(Puzzle {
         letters,
-        words: word_map,
-        lemmas: lema_map,
+        words: accent_map,
+        lemmas: lemma_map,
+        forms: forms_map,
         pangrams,
     })
 }

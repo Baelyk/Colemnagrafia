@@ -145,6 +145,7 @@ export function init(): Game {
 		letters: [],
 		words: {},
 		lemmas: {},
+		forms: {},
 		pangrams: [],
 		maxScore: 0,
 		word: "",
@@ -192,6 +193,7 @@ export function init(): Game {
 		wordMessage: null,
 
 		wordlistIsOpen: false,
+		wordlistHeight: 0,
 		wordlistScroll: 0,
 		wordlistScrollSpeed: 0,
 		wordlistUserIsScrolling: false,
@@ -241,6 +243,7 @@ export interface Game {
 	wordMessage: string | null;
 
 	wordlistIsOpen: boolean;
+	wordlistHeight: number;
 	wordlistScroll: number;
 	wordlistScrollSpeed: number;
 	/** Whether the user is currently scrolling (i.e. finger moving the list) */
