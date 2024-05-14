@@ -80,7 +80,7 @@ export function wordlist(_time: DOMHighResTimeStamp, game: Game) {
 		const rightX = wordlistX + wordlistWidth / 2 + 2 * SIZES.tiny(game);
 		game.ctx.font = `${SIZES.tiny(game)}px ${FONTS.default}`;
 		game.ctx.textBaseline = "middle";
-		game.ctx.font = `${SIZES.tiny(game)}px ${FONTS.default}`;
+		game.ctx.font = `bold ${SIZES.tiny(game)}px ${FONTS.default}`;
 		game.ctx.fillStyle = COLORS.fg(game);
 		game.ctx.fillText(
 			`${game.puzzle.found.length} word${
@@ -93,7 +93,7 @@ export function wordlist(_time: DOMHighResTimeStamp, game: Game) {
 		const textHeight = getTextHeight(game.ctx, "l");
 		const rowSpacing = SIZES.teeny(game);
 
-		textY += textHeight;
+		textY += rowSpacing + textHeight;
 		let col = 0;
 		for (const [lemma, forms] of lemmas) {
 			let lemmaIsForm =
@@ -102,10 +102,10 @@ export function wordlist(_time: DOMHighResTimeStamp, game: Game) {
 
 			if (lemmaIsForm && col > 1) {
 				col = 0;
-				textY += textHeight;
+				textY += rowSpacing + textHeight;
 			} else if (!lemmaIsForm && col !== 0) {
 				col = 0;
-				textY += textHeight;
+				textY += rowSpacing + textHeight;
 			}
 
 			game.ctx.font = `${SIZES.tiny(game)}px ${FONTS.default}`;
@@ -174,7 +174,6 @@ export function wordlist(_time: DOMHighResTimeStamp, game: Game) {
 			}
 			// The next lemma should start on a new row
 			col = 2;
-			textY += rowSpacing;
 		}
 
 		// Save the height for scroll restriction
