@@ -115,7 +115,7 @@ function menu(
 
 		let menuY = 3 * SIZES.big(game);
 
-		menuOptions.forEach(([menuOptionText, menuOptionAction], i) => {
+		menuOptions.forEach(([menuOptionText, menuOptionAction]) => {
 			game.ctx.strokeStyle = COLORS.fg(game);
 			game.ctx.stroke();
 
