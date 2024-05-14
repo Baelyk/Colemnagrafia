@@ -2,7 +2,7 @@ import { hints } from "./hints";
 import { Interaction, interacted, interacting } from "./listen";
 import { type Game, main } from "./main";
 import { getPuzzle, restartPuzzle } from "./puzzle";
-import { COLORS, FONTS, SIZES, getTextHeight } from "./utils";
+import { COLORS, FONTS, SIZES, getTextHeight, wrapText } from "./utils";
 
 export function menuBar(time: DOMHighResTimeStamp, game: Game) {
 	const menuBarY = SIZES.tiny(game);
@@ -65,7 +65,6 @@ function menu(
 		game.ctx.textAlign = "left";
 		game.ctx.textBaseline = "middle";
 		const menuButtonHeight = getTextHeight(game.ctx, "A") + SIZES.small(game);
-		const menuRowHeight = menuButtonHeight + SIZES.small(game);
 
 		const menuOptions: [string, () => void][] = [
 			[
@@ -114,37 +113,37 @@ function menu(
 			],
 		];
 
-		const menuY = game.height / 2 - (menuOptions.length * menuRowHeight) / 2;
+		let menuY = 3 * SIZES.big(game);
 
 		menuOptions.forEach(([menuOptionText, menuOptionAction], i) => {
+			game.ctx.strokeStyle = COLORS.fg(game);
+			game.ctx.stroke();
+
+			game.ctx.fillStyle = COLORS.fg(game);
+			const textHeight = wrapText(
+				game.ctx,
+				menuOptionText,
+				menuX + SIZES.small(game),
+				menuY + menuButtonHeight / 2,
+				menuButtonWidth - 2 * SIZES.small(game),
+			);
+			const buttonHeight = textHeight + SIZES.small(game);
 			game.ctx.beginPath();
 			game.ctx.roundRect(
 				menuX,
-				menuY + menuRowHeight * i,
+				menuY,
 				menuButtonWidth,
-				menuButtonHeight,
+				buttonHeight,
 				SIZES.teeny(game),
 			);
+			menuY += buttonHeight + SIZES.small(game);
 			if (interacting(game, Interaction.Down)) {
 				interacted(game);
 
 				menuOptionAction();
 
-				game.ctx.fillStyle = COLORS.darkgray(game);
 				window.requestAnimationFrame((time) => main(time, game));
-			} else {
-				game.ctx.fillStyle = COLORS.bg(game);
 			}
-			game.ctx.fill();
-			game.ctx.strokeStyle = COLORS.fg(game);
-			game.ctx.stroke();
-
-			game.ctx.fillStyle = COLORS.fg(game);
-			game.ctx.fillText(
-				menuOptionText,
-				menuX + SIZES.small(game),
-				menuY + menuButtonHeight / 2 + menuRowHeight * i,
-			);
 		});
 
 		// Any interaction not on a menu option closes the menu
