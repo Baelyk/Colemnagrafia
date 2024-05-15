@@ -366,6 +366,7 @@ export function hints(
 			game.ctx.fillStyle = COLORS.fg(game);
 			game.ctx.font = `${SIZES.tiny(game)}px ${FONTS.default}`;
 			game.ctx.textAlign = "center";
+			game.ctx.textBaseline = "bottom";
 			wrapText(
 				game.ctx,
 				tooltipText,
