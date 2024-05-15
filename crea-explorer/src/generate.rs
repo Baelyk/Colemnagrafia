@@ -9,6 +9,7 @@ pub fn generate() {
 
 pub fn generate_words_and_pangrams() -> (Vec<(String, String)>, Vec<String>) {
     let elements = parser::parse_elementos();
+    let lemmas = parser::parse_lemas();
 
     println!("Filtering words and common pangrams...");
     // List of *normalized* common pangrams for puzzle generation
@@ -18,6 +19,9 @@ pub fn generate_words_and_pangrams() -> (Vec<(String, String)>, Vec<String>) {
     elements
         .iter()
         .for_each(|(_, (element, lemma, category, freq, _, _))| {
+            if element == &String::from("abarcas") {
+                println!("{}, {}, {:?}, {}", element, lemma, category, freq);
+            }
             if lemma == &String::from("??")
                 || unidecode::unidecode(lemma) != unidecode::unidecode(lemma).to_ascii_lowercase()
             {
@@ -28,9 +32,12 @@ pub fn generate_words_and_pangrams() -> (Vec<(String, String)>, Vec<String>) {
                 filter(element, Some(lemma), Some(*category), *freq, true);
             if !valid {
                 // If not valid, do a last check to see if its valid using its lemma's frequency
-                let Some((_, _, _, lemma_freq, _, _)) = elements.get(lemma) else {
+                let Some((_, _, lemma_freq, _, _)) = lemmas.get(lemma) else {
                     return;
                 };
+                if element == &String::from("abarcas") {
+                    println!("by lemma freq: {}", lemma_freq);
+                }
                 let (valid_by_lemma, _) =
                     filter(element, Some(lemma), Some(*category), *lemma_freq, true);
                 if !valid_by_lemma {
