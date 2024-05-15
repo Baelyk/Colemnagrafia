@@ -101,6 +101,10 @@ export async function savePuzzle(game: Game) {
 }
 
 export function submitWord(game: Game, word?: string, save = true) {
+	if (game.puzzle.word === "") {
+		return;
+	}
+
 	const enteredWord = removeAccents(word ?? game.puzzle.word.toLowerCase());
 	game.puzzle.word = "";
 
