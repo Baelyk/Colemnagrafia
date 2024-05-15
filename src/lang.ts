@@ -208,7 +208,7 @@ export const es: Lang = {
 		remainingStarts: "Comienzos restantes",
 		tooltip: (letter: string, count: number) => {
 			if (count === 1) {
-				return `Queda una palabras más que empieza con ${letter.toUpperCase()}`;
+				return `Queda una palabra más que empieza con ${letter.toUpperCase()}`;
 			} else {
 				return `Quedan ${count} más palabras que empiezan con ${letter.toUpperCase()}`;
 			}
