@@ -166,13 +166,18 @@ export function wordlist(_time: DOMHighResTimeStamp, game: Game): boolean {
 			textY += rowSpacing + textHeight;
 		}
 
-		game.ctx.font = `${SIZES.tiny(game)}px ${FONTS.default}`;
+		const italics = game.puzzle.justFound.includes(lemma) ? "italic" : "";
+		const weight = game.puzzle.pangrams.includes(lemma) ? "bold" : "";
+		game.ctx.font = `${italics} ${weight} ${SIZES.tiny(game)}px ${
+			FONTS.default
+		} `;
 		game.ctx.fillStyle = COLORS.fg(game);
 		let text = lemma;
 		game.ctx.fillStyle = game.puzzle.found.includes(lemma)
 			? COLORS.fg(game)
 			: COLORS.yellow(game);
 		if (!lemmaIsForm) {
+			game.ctx.font = `${SIZES.tiny(game)}px ${FONTS.default}`;
 			game.ctx.fillStyle = COLORS.darkgray(game);
 			const delta =
 				game.puzzle.forms[lemma].length - (lemmasFound.get(lemma)?.length ?? 0);
