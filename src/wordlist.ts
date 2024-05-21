@@ -39,6 +39,15 @@ export function wordlist(_time: DOMHighResTimeStamp, game: Game) {
 	if (game.wordlistIsOpen) {
 		// Clip to only display text inside the wordlist
 		game.ctx.save();
+		game.ctx.beginPath();
+		const clipPadding = 2;
+		game.ctx.roundRect(
+			wordlistX + clipPadding,
+			wordlistY + clipPadding,
+			wordlistWidth - 2 * clipPadding,
+			wordlistHeight - 2 * clipPadding,
+			SIZES.teeny(game),
+		);
 		game.ctx.clip();
 
 		let list = [...game.puzzle.found];
