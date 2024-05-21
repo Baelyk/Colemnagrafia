@@ -100,6 +100,8 @@ export function wordlist(_time: DOMHighResTimeStamp, game: Game): boolean {
 	game.ctx.clip();
 
 	let list = [...game.puzzle.found];
+	// Sort the entire wordlist now so that each lemma's list is sorted
+	list.sort((a, b) => a.localeCompare(b));
 	// Maintain a list with just the found forms to be able to say how many
 	// unfound forms remain even if revealing answers
 	const lemmasFound = new Map<string, string[]>();
