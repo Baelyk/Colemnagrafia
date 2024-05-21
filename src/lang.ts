@@ -189,7 +189,7 @@ export const es: Lang = {
 					text = `Quedan ${remaining} otras pangramas más`;
 				}
 				if (total === 1) {
-					text += " y es la única";
+					text += " y es la única.";
 				} else {
 					text += `, de ${total} pangramas en total.`;
 				}
@@ -221,7 +221,7 @@ export const es: Lang = {
 			"Subiendo",
 			"Que bien",
 			"Macizo",
-			"Super",
+			"Súper",
 			"Genial",
 			"Increíble",
 			"Genio",
