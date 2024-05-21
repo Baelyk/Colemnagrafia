@@ -3,9 +3,17 @@ import { type Game, main } from "./main";
 import { COLORS, FONTS, SIZES, getTextHeight, scrolling } from "./utils";
 
 export function wordlist(_time: DOMHighResTimeStamp, game: Game): boolean {
-	const wordlistWidth = game.width - 2 * SIZES.tiny(game);
-	const wordlistX = game.width / 2 - wordlistWidth / 2;
+	let wordlistWidth = game.width - 2 * SIZES.tiny(game);
+	let wordlistX = game.width / 2 - wordlistWidth / 2;
 	const wordlistY = 4 * SIZES.small(game);
+
+	// In pane mode, the wordlist should always be open
+	if (game.panes != null) {
+		wordlistX = game.panes.rightX + SIZES.tiny(game);
+		wordlistWidth = game.panes.width - 2 * SIZES.tiny(game);
+		game.wordlistIsOpen = true;
+	}
+
 	const wordlistHeight = game.wordlistIsOpen
 		? game.height - wordlistY - SIZES.small(game)
 		: game.height / 20;
@@ -80,7 +88,7 @@ export function wordlist(_time: DOMHighResTimeStamp, game: Game): boolean {
 	// Opened wordlist
 
 	// Check for closing the wordlist
-	if (interacting(game, Interaction.AnyUp)) {
+	if (game.panes == null && interacting(game, Interaction.AnyUp)) {
 		interacted(game);
 		game.wordlistIsOpen = false;
 		window.requestAnimationFrame((time) => main(time, game));
@@ -246,5 +254,6 @@ export function wordlist(_time: DOMHighResTimeStamp, game: Game): boolean {
 	// Restore previous clipping
 	game.ctx.restore();
 
-	return true;
+	// Block further rendering when in single pane mode
+	return game.panes == null;
 }

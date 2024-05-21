@@ -14,8 +14,13 @@ export function controls(_time: DOMHighResTimeStamp, game: Game) {
 	game.ctx.textBaseline = "middle";
 	game.ctx.strokeStyle = COLORS.fg(game);
 
+	let controlX = game.width / 2;
+	if (game.panes != null) {
+		controlX = game.panes.leftX + game.panes.width / 2;
+	}
+
 	// Delete
-	const deleteX = game.width / 2 - controlsWidth / 2;
+	const deleteX = controlX - controlsWidth / 2;
 	game.ctx.beginPath();
 	game.ctx.roundRect(
 		deleteX,
@@ -46,7 +51,7 @@ export function controls(_time: DOMHighResTimeStamp, game: Game) {
 
 	// Shuffle
 	game.ctx.beginPath();
-	game.ctx.arc(game.width / 2, controlY, controlRadius, 0, 2 * Math.PI);
+	game.ctx.arc(controlX, controlY, controlRadius, 0, 2 * Math.PI);
 	game.ctx.fillStyle = COLORS.bg(game);
 	if (interacting(game, Interaction.Down)) {
 		interacted(game);
@@ -62,7 +67,7 @@ export function controls(_time: DOMHighResTimeStamp, game: Game) {
 	game.ctx.fill();
 	// Shuffle symbol
 	game.ctx.save();
-	game.ctx.translate(game.width / 2, controlY);
+	game.ctx.translate(controlX, controlY);
 	game.ctx.rotate(-Math.PI / 4);
 
 	// Arrow lines
@@ -114,7 +119,7 @@ export function controls(_time: DOMHighResTimeStamp, game: Game) {
 	game.ctx.restore();
 
 	// Enter
-	const enterX = game.width / 2 + controlsWidth / 2 - controlWidth;
+	const enterX = controlX + controlsWidth / 2 - controlWidth;
 	game.ctx.beginPath();
 	game.ctx.roundRect(
 		enterX,

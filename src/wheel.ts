@@ -14,7 +14,10 @@ export function wheel(time: DOMHighResTimeStamp, game: Game) {
 	game.ctx.textBaseline = "middle";
 
 	// Center hexagon
-	const centerX = game.width / 2;
+	let centerX = game.width / 2;
+	if (game.panes != null) {
+		centerX = game.panes.leftX + game.panes.width / 2;
+	}
 	const centerY = game.height - hexRadius * 4.5;
 	hexagon(game.ctx, centerX, centerY, hexRadius);
 	game.ctx.fillStyle = COLORS.yellow(game);

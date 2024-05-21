@@ -4,7 +4,7 @@ import { PointerData, gobbleMissedInteractions, listen } from "./listen";
 import { menuBar } from "./menu";
 import { type HintsData, type Puzzle, getPuzzle } from "./puzzle";
 import { scorebar } from "./scorebar";
-import { COLORS, resizeCanvas } from "./utils";
+import { COLORS, SIZES, resizeCanvas } from "./utils";
 import { wheel } from "./wheel";
 import { word } from "./word";
 import { wordlist } from "./wordlist";
@@ -26,9 +26,48 @@ export function main(time: DOMHighResTimeStamp, game: Game) {
 	game.ctx.fillStyle = COLORS.bg(game);
 	game.ctx.fillRect(0, 0, game.width, game.height);
 
+	panes(time, game);
+
 	components(time, game);
 
 	gobbleMissedInteractions(game);
+}
+
+function panes(_time: DOMHighResTimeStamp, game: Game) {
+	const width = 8 * SIZES.big(game);
+	const padding = SIZES.big(game);
+
+	// Enable/disable pane mode
+	if (game.width < 2 * width + padding) {
+		if (game.panes != null) {
+			console.log("Disabling two pane mode");
+		}
+		game.panes = null;
+		return;
+	}
+	if (game.panes == null) {
+		console.log("Enabling two pane mode");
+	}
+
+	const leftX = (game.width - padding) / 2 - width;
+	const rightX = leftX + width + padding;
+	game.panes = {
+		width,
+		leftX,
+		rightX,
+	};
+
+	// Left pane
+	game.ctx.beginPath();
+	//game.ctx.rect(game.panes.leftX, 0, game.panes.width, game.height);
+	//game.ctx.fillStyle = COLORS.red(game);
+	//game.ctx.fill();
+
+	// Right pane
+	game.ctx.beginPath();
+	//game.ctx.rect(game.panes.rightX, 0, game.panes.width, game.height);
+	//game.ctx.fillStyle = COLORS.yellow(game);
+	//game.ctx.fill();
 }
 
 function components(time: DOMHighResTimeStamp, game: Game) {
@@ -71,7 +110,8 @@ function components(time: DOMHighResTimeStamp, game: Game) {
 	if (game.menuOpen) {
 		return;
 	}
-	if (game.hintsOpen) {
+	// In single pane mode, stop further rendering if the hints screen is open
+	if (game.panes == null && game.hintsOpen) {
 		return;
 	}
 
@@ -83,9 +123,12 @@ function components(time: DOMHighResTimeStamp, game: Game) {
 	}
 
 	try {
-		const wordlistOpen = wordlist(time, game);
-		if (wordlistOpen) {
-			return;
+		// In double pane mode, do not render wordlist if the hints screen is open
+		if (game.panes == null || !game.hintsOpen) {
+			const wordlistOpen = wordlist(time, game);
+			if (wordlistOpen) {
+				return;
+			}
 		}
 	} catch (error) {
 		console.error(`Error during component \`wordlist\`: ${error}`);
@@ -175,6 +218,7 @@ export function init(): Game {
 		tagName: "game",
 		darkMode,
 		lang: es,
+		panes: null,
 
 		errorText: null,
 		splashScreenText: null,
@@ -226,6 +270,12 @@ export interface Game {
 	tagName: "game";
 	darkMode: boolean;
 	lang: Lang;
+
+	panes: {
+		width: number;
+		leftX: number;
+		rightX: number;
+	} | null;
 
 	errorText: string | null;
 	splashScreenText: [string, string] | null;

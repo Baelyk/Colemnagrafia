@@ -47,19 +47,27 @@ export function hints(
 	game.ctx.fillText("?", hintsX + menuHeight / 2, hintsY + menuHeight / 2);
 
 	if (game.hintsOpen) {
-		let hintsY = SIZES.teeny(game);
+		const hintsX = game.panes != null ? game.panes.rightX : 0;
+		const hintsPadding = game.panes != null ? SIZES.tiny(game) : menuBarPadding;
+		const hintsWidth =
+			game.panes != null ? game.panes.width - 2 * SIZES.tiny(game) : game.width;
+		let hintsY = game.panes != null ? 4 * SIZES.small(game) : SIZES.teeny(game);
+		const hintsHeight =
+			game.panes != null
+				? game.height - hintsY - SIZES.small(game)
+				: game.height;
 
 		game.ctx.fillStyle = COLORS.fg(game);
 		game.ctx.textAlign = "left";
 		game.ctx.textBaseline = "top";
 		const hintsHeader = "hints";
 		game.ctx.font = `bold ${SIZES.medium(game)}px ${FONTS.word}`;
-		game.ctx.fillText(game.lang.hints.title, menuBarPadding, hintsY);
+		game.ctx.fillText(game.lang.hints.title, hintsX + hintsPadding, hintsY);
 		hintsY += getTextHeight(game.ctx, hintsHeader);
 
 		// Clip to only display text inside the wordlist
 		game.ctx.beginPath();
-		game.ctx.rect(0, hintsY, game.width, game.height);
+		game.ctx.rect(hintsX, hintsY, hintsWidth, hintsHeight);
 		game.ctx.save();
 		game.ctx.clip();
 
@@ -83,9 +91,9 @@ export function hints(
 		const hintsPangramTextHeight = wrapText(
 			game.ctx,
 			hintsPangramText,
-			menuBarPadding,
+			hintsX + hintsPadding,
 			hintsY,
-			game.width - menuBarPadding * 2,
+			hintsWidth,
 		);
 		hintsY += hintsPangramTextHeight + SIZES.small(game);
 
@@ -96,7 +104,7 @@ export function hints(
 		game.ctx.textBaseline = "top";
 		const remainingWordsHeader = game.lang.hints.remainingWords;
 		game.ctx.font = `bold ${SIZES.small(game)}px ${FONTS.word}`;
-		game.ctx.fillText(remainingWordsHeader, menuBarPadding, hintsY);
+		game.ctx.fillText(remainingWordsHeader, hintsX + hintsPadding, hintsY);
 		hintsY +=
 			getTextHeight(game.ctx, remainingWordsHeader) -
 			cellSize / 2 +
@@ -139,7 +147,7 @@ export function hints(
 			}
 		}
 
-		const hintsTableMaxScroll = Math.max(0, tableWidth - game.width);
+		const hintsTableMaxScroll = Math.max(0, tableWidth - hintsWidth);
 		[game.hintsTableScroll, game.hintsTableScrollSpeed] = scrolling(
 			game,
 			game.hintsTableScroll,
@@ -148,7 +156,7 @@ export function hints(
 			hintsTableMaxScroll,
 		);
 
-		const tableX = SIZES.small(game) - game.hintsTableScroll;
+		const tableX = hintsX + SIZES.small(game) - game.hintsTableScroll;
 		game.ctx.textBaseline = "top";
 		for (let j = 0; j < lengths.length; j++) {
 			game.ctx.fillText(
@@ -262,13 +270,13 @@ export function hints(
 		game.ctx.textBaseline = "top";
 		const remainingStartsHeader = game.lang.hints.remainingStarts;
 		game.ctx.font = `bold ${SIZES.small(game)}px ${FONTS.word}`;
-		game.ctx.fillText(remainingStartsHeader, menuBarPadding, hintsY);
+		game.ctx.fillText(remainingStartsHeader, hintsX + hintsPadding, hintsY);
 		hintsY +=
 			getTextHeight(game.ctx, remainingStartsHeader) + SIZES.teeny(game);
 
 		game.ctx.textAlign = "center";
 		game.ctx.textBaseline = "middle";
-		const startsX = SIZES.small(game);
+		const startsX = hintsX + SIZES.small(game);
 		let j = 0;
 		const starts = Array.from(game.hintsPuzzle.starts.entries());
 		starts.sort(([a, _], [b, __]) => a.localeCompare(b));
@@ -282,8 +290,8 @@ export function hints(
 			}
 
 			// Start a new line if this one it would overflow
-			const lineWidth = startsX + cellSize * (j + 2);
-			if (lineWidth > game.width - SIZES.small(game)) {
+			const lineWidth = cellSize * (j + 2);
+			if (lineWidth > hintsWidth - SIZES.small(game)) {
 				hintsY += cellSize + SIZES.tiny(game);
 				j = 0;
 			}
@@ -343,8 +351,8 @@ export function hints(
 
 			const interactiveHeight = SIZES.big(game);
 			const interactiveY = game.height - interactiveHeight - SIZES.tiny(game);
-			const interactiveWidth = game.width - 2 * SIZES.big(game);
-			const interactiveX = game.width / 2 - interactiveWidth / 2;
+			const interactiveWidth = hintsWidth - 2 * SIZES.big(game);
+			const interactiveX = hintsX + hintsWidth / 2 - interactiveWidth / 2;
 
 			game.ctx.beginPath();
 			game.ctx.roundRect(
@@ -370,7 +378,7 @@ export function hints(
 			wrapText(
 				game.ctx,
 				tooltipText,
-				game.width / 2,
+				hintsX + hintsWidth / 2,
 				interactiveY + interactiveHeight / 2,
 				interactiveWidth - SIZES.big(game),
 			);

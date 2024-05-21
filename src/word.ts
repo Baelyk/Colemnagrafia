@@ -6,6 +6,11 @@ export function word(_time: DOMHighResTimeStamp, game: Game) {
 
 	const text = game.wordMessage ?? game.puzzle.word;
 
+	let textX = game.width / 2;
+	if (game.panes != null) {
+		textX = game.panes.leftX + game.panes.width / 2;
+	}
+
 	let fontsize = SIZES.medium(game);
 	game.ctx.font = `bold ${fontsize}px ${FONTS.word}`;
 	game.ctx.textBaseline = "middle";
@@ -21,12 +26,12 @@ export function word(_time: DOMHighResTimeStamp, game: Game) {
 	if (game.wordMessage != null) {
 		game.ctx.textAlign = "center";
 		game.ctx.fillStyle = COLORS.darkgray(game);
-		game.ctx.fillText(game.wordMessage, game.width / 2, wordY);
+		game.ctx.fillText(game.wordMessage, textX, wordY);
 		return;
 	}
 
 	game.ctx.textAlign = "left";
-	let letterX = game.width / 2 - wordWidth / 2;
+	let letterX = textX - wordWidth / 2;
 	for (const letter of game.puzzle.word) {
 		game.ctx.fillStyle =
 			letter === game.puzzle.letters[0] ? COLORS.yellow(game) : COLORS.fg(game);
