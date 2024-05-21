@@ -83,13 +83,13 @@ function components(time: DOMHighResTimeStamp, game: Game) {
 	}
 
 	try {
-		wordlist(time, game);
+		const wordlistOpen = wordlist(time, game);
+		if (wordlistOpen) {
+			return;
+		}
 	} catch (error) {
 		console.error(`Error during component \`wordlist\`: ${error}`);
 		console.error(error);
-	}
-	if (game.wordlistIsOpen) {
-		return;
 	}
 
 	try {
