@@ -101,12 +101,11 @@ export async function savePuzzle(game: Game) {
 }
 
 export function submitWord(game: Game, word?: string, save = true) {
-	if (game.puzzle.word === "") {
-		return;
-	}
-
 	const enteredWord = removeAccents(word ?? game.puzzle.word.toLowerCase());
 	game.puzzle.word = "";
+	if (enteredWord === "") {
+		return;
+	}
 
 	if (Object.hasOwn(game.puzzle.words, enteredWord)) {
 		// The entered word has no accents, i.e. is normalized, so normalize the
