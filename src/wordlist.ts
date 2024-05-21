@@ -25,18 +25,20 @@ export function wordlist(_time: DOMHighResTimeStamp, game: Game) {
 	game.ctx.fill();
 	game.ctx.stroke();
 
-	if (interacting(game, Interaction.Up)) {
-		interacted(game);
-		game.wordlistIsOpen = !game.wordlistIsOpen;
-		window.requestAnimationFrame((time) => main(time, game));
-	}
-
 	game.ctx.font = `${SIZES.tiny(game)}px ${FONTS.default}`;
 	game.ctx.textAlign = "left";
 	game.ctx.textBaseline = "middle";
 
 	// Opened wordlist
 	if (game.wordlistIsOpen) {
+		// Check for closing the wordlist
+		if (interacting(game, Interaction.AnyUp)) {
+			interacted(game);
+			game.wordlistIsOpen = false;
+			window.requestAnimationFrame((time) => main(time, game));
+			return;
+		}
+
 		// Clip to only display text inside the wordlist
 		game.ctx.save();
 		game.ctx.beginPath();
@@ -197,6 +199,13 @@ export function wordlist(_time: DOMHighResTimeStamp, game: Game) {
 
 	// Wordlist preview
 	if (!game.wordlistIsOpen) {
+		// Check for opening the wordlist
+		if (interacting(game, Interaction.Down)) {
+			interacted(game);
+			game.wordlistIsOpen = true;
+			window.requestAnimationFrame((time) => main(time, game));
+			return;
+		}
 		let previewSize = 0;
 		const textX = wordlistX + SIZES.tiny(game);
 		const padding = SIZES.teeny(game);

@@ -15,6 +15,8 @@ export enum Interaction {
 	Down = "down",
 	/** Interaction for a pointer inside the current path (not necessarily down) */
 	Hover = "hover",
+	/** Interaction for the pointer Down and then Up anywhere */
+	AnyUp = "anyup",
 	/** Interaction for the pointer Down and then Up inside the current path */
 	Up = "up",
 }
@@ -23,7 +25,11 @@ export enum Interaction {
  * Return if the pointer is interacting with the current path
  */
 export function interacting(game: Game, interaction: Interaction): boolean {
-	if (game.pointerUp != null || interaction === Interaction.Up) {
+	if (
+		game.pointerUp != null ||
+		interaction === Interaction.Up ||
+		interaction === Interaction.AnyUp
+	) {
 		if (game.pointerDown == null) {
 			// Pointer down is null, which means the pointer moved to much, i.e. the
 			// user ended up scrolling
@@ -33,14 +39,19 @@ export function interacting(game: Game, interaction: Interaction): boolean {
 			// Pointer is not up yet
 			return false;
 		}
-		// If the pointer didn't move much in going Down to Up, check if the Down
-		// happened inside the path. If so, this is indeed an Interaction.Up
+		// If the pointer didn't move much in going Down to Up, this is indeed an
+		// Interaction.Up or Interaction.AnyUp
 		const pointerDelta = Math.hypot(
 			game.pointerUp.x - game.pointerDown.x,
 			game.pointerUp.y - game.pointerDown.y,
 		);
 		if (pointerDelta < SIZES.small(game)) {
-			return game.ctx.isPointInPath(game.pointerDown.x, game.pointerDown.y);
+			// If this is an Interaction.Up, ensure the down happened inside the path
+			if (interaction === Interaction.Up) {
+				return game.ctx.isPointInPath(game.pointerDown.x, game.pointerDown.y);
+			} else if (interaction === Interaction.AnyUp) {
+				return true;
+			}
 		}
 
 		return false;
