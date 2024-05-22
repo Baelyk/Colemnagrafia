@@ -116,9 +116,6 @@ function menu(
 		let menuY = 3 * SIZES.big(game);
 
 		menuOptions.forEach(([menuOptionText, menuOptionAction]) => {
-			game.ctx.strokeStyle = COLORS.fg(game);
-			game.ctx.stroke();
-
 			game.ctx.fillStyle = COLORS.fg(game);
 			const textHeight = wrapText(
 				game.ctx,
@@ -136,6 +133,8 @@ function menu(
 				buttonHeight,
 				SIZES.teeny(game),
 			);
+			game.ctx.strokeStyle = COLORS.fg(game);
+			game.ctx.stroke();
 			menuY += buttonHeight + SIZES.small(game);
 			if (interacting(game, Interaction.Down)) {
 				interacted(game);

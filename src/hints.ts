@@ -47,7 +47,8 @@ export function hints(
 	game.ctx.fillText("?", hintsX + menuHeight / 2, hintsY + menuHeight / 2);
 
 	if (game.hintsOpen) {
-		const hintsX = game.panes != null ? game.panes.rightX : 0;
+		const hintsX =
+			game.panes != null ? game.panes.rightX + SIZES.tiny(game) : 0;
 		const hintsPadding = game.panes != null ? SIZES.tiny(game) : menuBarPadding;
 		const hintsWidth =
 			game.panes != null ? game.panes.width - 2 * SIZES.tiny(game) : game.width;
@@ -62,12 +63,40 @@ export function hints(
 		game.ctx.textBaseline = "top";
 		const hintsHeader = "hints";
 		game.ctx.font = `bold ${SIZES.medium(game)}px ${FONTS.word}`;
-		game.ctx.fillText(game.lang.hints.title, hintsX + hintsPadding, hintsY);
-		hintsY += getTextHeight(game.ctx, hintsHeader);
+		game.ctx.fillText(
+			game.lang.hints.title,
+			hintsX + hintsPadding,
+			hintsY + SIZES.teeny(game),
+		);
+		const hintsHeaderHeight = getTextHeight(game.ctx, hintsHeader);
+
+		// Hints outline when in two pane mode
+		if (game.panes != null) {
+			game.ctx.beginPath();
+			game.ctx.roundRect(
+				hintsX,
+				hintsY,
+				hintsWidth,
+				hintsHeight,
+				SIZES.teeny(game),
+			);
+			game.ctx.lineWidth = 1;
+			game.ctx.strokeStyle = COLORS.fg(game);
+			game.ctx.stroke();
+		}
+
+		hintsY += hintsHeaderHeight;
 
 		// Clip to only display text inside the wordlist
+		const padding = 2;
 		game.ctx.beginPath();
-		game.ctx.rect(hintsX, hintsY, hintsWidth, hintsHeight);
+		game.ctx.roundRect(
+			hintsX + padding,
+			hintsY,
+			hintsWidth - 2 * padding,
+			hintsHeight - hintsHeaderHeight - padding,
+			SIZES.teeny(game),
+		);
 		game.ctx.save();
 		game.ctx.clip();
 
