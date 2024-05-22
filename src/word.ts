@@ -16,7 +16,8 @@ export function word(_time: DOMHighResTimeStamp, game: Game) {
 	game.ctx.textBaseline = "middle";
 	game.ctx.fillStyle = COLORS.fg(game);
 	let wordWidth = game.ctx.measureText(text).width;
-	while (wordWidth > game.width * 0.75) {
+	const maxWidth = 0.75 * (game.panes != null ? game.panes.width : game.width);
+	while (wordWidth > maxWidth) {
 		fontsize = fontsize * 0.95;
 		game.ctx.font = `bold ${fontsize}px ${FONTS.word}`;
 		wordWidth = game.ctx.measureText(text).width;
