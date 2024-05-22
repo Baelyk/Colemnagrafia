@@ -62,13 +62,16 @@ export function hints(
 		game.ctx.textAlign = "left";
 		game.ctx.textBaseline = "top";
 		const hintsHeader = "hints";
+		const hintsHeaderPadding =
+			game.panes != null ? SIZES.tiny(game) : SIZES.teeny(game);
 		game.ctx.font = `bold ${SIZES.medium(game)}px ${FONTS.word}`;
 		game.ctx.fillText(
 			game.lang.hints.title,
 			hintsX + hintsPadding,
-			hintsY + SIZES.teeny(game),
+			hintsY + hintsHeaderPadding,
 		);
-		const hintsHeaderHeight = getTextHeight(game.ctx, hintsHeader);
+		const hintsHeaderHeight =
+			getTextHeight(game.ctx, hintsHeader) + hintsHeaderPadding;
 
 		// Hints outline when in two pane mode
 		if (game.panes != null) {
@@ -122,7 +125,7 @@ export function hints(
 			hintsPangramText,
 			hintsX + hintsPadding,
 			hintsY,
-			hintsWidth,
+			hintsWidth - 2 * hintsPadding,
 		);
 		hintsY += hintsPangramTextHeight + SIZES.small(game);
 
