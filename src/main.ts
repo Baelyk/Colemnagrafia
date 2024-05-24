@@ -232,6 +232,9 @@ export function init(): Game {
 		pointerY: -1,
 		pointerDown: null,
 		pointerUp: null,
+		pointerScrollHorizontal: 0,
+		pointerScrollVertical: 0,
+		pointerScrollIsWheel: false,
 
 		clickedHex: null,
 		clickedHexTime: null,
@@ -289,6 +292,9 @@ export interface Game {
 	pointerY: number;
 	pointerDown: PointerData | null;
 	pointerUp: PointerData | null;
+	pointerScrollVertical: number;
+	pointerScrollHorizontal: number;
+	pointerScrollIsWheel: boolean;
 
 	clickedHex: number | null;
 	clickedHexTime: DOMHighResTimeStamp | null;

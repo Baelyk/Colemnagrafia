@@ -109,8 +109,8 @@ export function hints(
 		[game.hintsScroll, game.hintsScrollSpeed] = scrolling(
 			game,
 			game.hintsScroll,
+			game.pointerScrollVertical,
 			game.hintsScrollSpeed,
-			game.hintsUserIsScrolling,
 			hintsMaxScroll,
 		);
 		hintsY -= game.hintsScroll;
@@ -183,8 +183,8 @@ export function hints(
 		[game.hintsTableScroll, game.hintsTableScrollSpeed] = scrolling(
 			game,
 			game.hintsTableScroll,
+			game.pointerScrollHorizontal,
 			game.hintsTableScrollSpeed,
-			game.hintsTableUserIsScrolling,
 			hintsTableMaxScroll,
 		);
 

@@ -221,20 +221,34 @@ export function removeAccents(str: string): string {
 export function scrolling(
 	game: Game,
 	scroll: number,
+	scrollDelta: number,
 	scrollSpeed: number,
-	userIsScrolling: boolean,
 	maximumScroll: number,
 ): [number, number] {
+	const userIsScrolling = scrollDelta !== 0;
 	let newScroll = scroll;
 	let newScrollSpeed = scrollSpeed;
+	console.log(newScroll, scrollDelta, newScrollSpeed, userIsScrolling);
 
-	// Update scroll while user is scrolling
 	if (userIsScrolling) {
+		newScrollSpeed = scrollDelta;
+	}
+
+	// Only scroll if the user is scrolling and the pointer is in the path
+	let { pointerX, pointerY } = game;
+	if (!game.pointerScrollIsWheel && game.pointerDown != null) {
+		console.log("t");
+		// When not scrolling by wheel, use pointer down position
+		pointerX = game.pointerDown.x;
+		pointerY = game.pointerDown.y;
+	}
+	if (userIsScrolling && game.ctx.isPointInPath(pointerX, pointerY)) {
+		console.log("in path");
 		newScroll -= scrollSpeed;
 	}
 
 	// Scrolling inertia
-	if (!userIsScrolling && scrollSpeed !== 0) {
+	if (!userIsScrolling && !game.pointerScrollIsWheel && scrollSpeed !== 0) {
 		// The user is not currently scrolling and scroll speed is positive, i.e. scrolling via "inertia"
 		newScroll -= scrollSpeed;
 		newScrollSpeed *= 0.97;
@@ -257,6 +271,8 @@ export function scrolling(
 		newScroll = maximumScroll;
 		newScrollSpeed = 0;
 	}
+
+	console.log("a", newScroll, scrollDelta, newScrollSpeed, userIsScrolling);
 
 	return [newScroll, newScrollSpeed];
 }
