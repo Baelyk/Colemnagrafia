@@ -5,7 +5,7 @@ import { SIZES, resizeCanvas } from "./utils";
 export interface PointerData {
 	x: number;
 	y: number;
-	time: DOMHighResTimeStamp | null;
+	new: boolean;
 }
 
 export enum Interaction {
@@ -85,17 +85,60 @@ export function interacted(game: Game) {
 	game.pointerScrollHorizontal = 0;
 }
 
+export function isUserScrolling(
+	game: Game,
+	//scrollDelta: number,
+): boolean | null {
+	// Check for scrolling, i.e. pointer newly down and in path
+	if (
+		game.pointerDown?.new &&
+		game.ctx.isPointInPath(game.pointerDown.x, game.pointerDown.y)
+	) {
+		// Pointer drag scrolling
+		return true;
+	} else if (
+		//scrollDelta > 0 &&
+		game.pointerScrollIsWheel &&
+		game.ctx.isPointInPath(game.pointerX, game.pointerY)
+	) {
+		// Mouse wheel scrolling
+		return true;
+	} else if (
+		game.pointerUp?.new ||
+		game.pointerDown == null ||
+		game.pointerScrollIsWheel
+	) {
+		// Not scrolling
+		return false;
+	}
+
+	return null;
+}
+
 /**
- * If the pointer has gone through a down and up cycle without being marked as
- * interacted, mark it as interacted now to reset interaction state.
+ * Reset pointer state at the end of a tick to clean up missed clicks, remove
+ * new status from downs and ups, and reset scrolling state.
  */
 export function gobbleMissedInteractions(game: Game) {
+	// If the pointer has gone through a down and up cycle without being marked as
+	// interacted, mark it as interacted now to reset interaction state.
 	if (game.pointerDown != null && game.pointerUp != null) {
 		game.pointerDown = null;
 		game.pointerUp = null;
 	}
+
+	// Remove new from pointerDown/Up
+	if (game.pointerDown?.new) {
+		game.pointerDown.new = false;
+	}
+	if (game.pointerUp?.new) {
+		game.pointerUp.new = false;
+	}
+
+	// Scrolls are always missed
 	game.pointerScrollVertical = 0;
 	game.pointerScrollHorizontal = 0;
+	game.pointerScrollIsWheel = false;
 }
 
 export function listen(game: Game) {
@@ -106,7 +149,7 @@ export function listen(game: Game) {
 		game.pointerDown = {
 			x: event.clientX * game.scaling,
 			y: event.clientY * game.scaling,
-			time: null,
+			new: true,
 		};
 		game.pointerX = event.clientX * game.scaling;
 		game.pointerY = event.clientY * game.scaling;
@@ -167,7 +210,7 @@ export function listen(game: Game) {
 		game.pointerUp = {
 			x: event.clientX * game.scaling,
 			y: event.clientY * game.scaling,
-			time: null,
+			new: true,
 		};
 
 		window.requestAnimationFrame((time) => main(time, game));

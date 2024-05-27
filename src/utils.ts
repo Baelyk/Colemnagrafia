@@ -223,34 +223,28 @@ export function scrolling(
 	scroll: number,
 	scrollDelta: number,
 	scrollSpeed: number,
+	userIsScrolling: boolean,
 	maximumScroll: number,
 ): [number, number] {
-	const userIsScrolling = scrollDelta !== 0;
 	let newScroll = scroll;
-	let newScrollSpeed = scrollSpeed;
-	console.log(newScroll, scrollDelta, newScrollSpeed, userIsScrolling);
+	// Set the newScrollSpeed to the amount scrolled by the pointer since the last
+	// frame if the user is scrolling, otherwise set it to the old scrollSpeed
+	let newScrollSpeed = userIsScrolling ? scrollDelta : scrollSpeed;
+
+	// No inertia when scrolling with the wheel, so bypass speed and manually update
+	// scroll
+	if (userIsScrolling && game.pointerScrollIsWheel) {
+		newScrollSpeed = 0;
+		newScroll += scrollDelta;
+	}
 
 	if (userIsScrolling) {
-		newScrollSpeed = scrollDelta;
-	}
-
-	// Only scroll if the user is scrolling and the pointer is in the path
-	let { pointerX, pointerY } = game;
-	if (!game.pointerScrollIsWheel && game.pointerDown != null) {
-		console.log("t");
-		// When not scrolling by wheel, use pointer down position
-		pointerX = game.pointerDown.x;
-		pointerY = game.pointerDown.y;
-	}
-	if (userIsScrolling && game.ctx.isPointInPath(pointerX, pointerY)) {
-		console.log("in path");
-		newScroll -= scrollSpeed;
-	}
-
-	// Scrolling inertia
-	if (!userIsScrolling && !game.pointerScrollIsWheel && scrollSpeed !== 0) {
+		// Scrolling by user
+		newScroll += newScrollSpeed;
+	} else if (newScrollSpeed !== 0) {
+		// Scrolling by inertia
 		// The user is not currently scrolling and scroll speed is positive, i.e. scrolling via "inertia"
-		newScroll -= scrollSpeed;
+		newScroll += newScrollSpeed;
 		newScrollSpeed *= 0.97;
 
 		// Enforce a minimum speed
@@ -266,13 +260,11 @@ export function scrolling(
 		// No need to scroll up
 		newScroll = 0;
 		newScrollSpeed = 0;
-	} else if (scroll > maximumScroll) {
+	} else if (newScroll > maximumScroll) {
 		// No need to bring the end of the list above the bottom
 		newScroll = maximumScroll;
 		newScrollSpeed = 0;
 	}
-
-	console.log("a", newScroll, scrollDelta, newScrollSpeed, userIsScrolling);
 
 	return [newScroll, newScrollSpeed];
 }
