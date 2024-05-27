@@ -221,22 +221,30 @@ export function removeAccents(str: string): string {
 export function scrolling(
 	game: Game,
 	scroll: number,
+	scrollDelta: number,
 	scrollSpeed: number,
 	userIsScrolling: boolean,
 	maximumScroll: number,
 ): [number, number] {
 	let newScroll = scroll;
-	let newScrollSpeed = scrollSpeed;
+	// Set the newScrollSpeed to the amount scrolled by the pointer since the last
+	// frame if the user is scrolling, otherwise set it to the old scrollSpeed
+	let newScrollSpeed = userIsScrolling ? scrollDelta : scrollSpeed;
 
-	// Update scroll while user is scrolling
-	if (userIsScrolling) {
-		newScroll -= scrollSpeed;
+	// No inertia when scrolling with the wheel, so bypass speed and manually update
+	// scroll
+	if (userIsScrolling && game.pointerScrollIsWheel) {
+		newScrollSpeed = 0;
+		newScroll += scrollDelta;
 	}
 
-	// Scrolling inertia
-	if (!userIsScrolling && scrollSpeed !== 0) {
+	if (userIsScrolling) {
+		// Scrolling by user
+		newScroll += newScrollSpeed;
+	} else if (newScrollSpeed !== 0) {
+		// Scrolling by inertia
 		// The user is not currently scrolling and scroll speed is positive, i.e. scrolling via "inertia"
-		newScroll -= scrollSpeed;
+		newScroll += newScrollSpeed;
 		newScrollSpeed *= 0.97;
 
 		// Enforce a minimum speed
@@ -252,7 +260,7 @@ export function scrolling(
 		// No need to scroll up
 		newScroll = 0;
 		newScrollSpeed = 0;
-	} else if (scroll > maximumScroll) {
+	} else if (newScroll > maximumScroll) {
 		// No need to bring the end of the list above the bottom
 		newScroll = maximumScroll;
 		newScrollSpeed = 0;

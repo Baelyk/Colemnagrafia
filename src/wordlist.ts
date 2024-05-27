@@ -1,4 +1,9 @@
-import { Interaction, interacted, interacting } from "./listen";
+import {
+	Interaction,
+	interacted,
+	interacting,
+	isUserScrolling,
+} from "./listen";
 import { type Game, main } from "./main";
 import { COLORS, FONTS, SIZES, getTextHeight, scrolling } from "./utils";
 
@@ -107,6 +112,22 @@ export function wordlist(_time: DOMHighResTimeStamp, game: Game): boolean {
 	);
 	game.ctx.clip();
 
+	// Restrict scrolling
+	game.wordlistUserIsScrolling =
+		isUserScrolling(game) ?? game.wordlistUserIsScrolling;
+	const wordlistMaxScroll = Math.max(
+		0,
+		game.wordlistHeight - wordlistHeight + SIZES.small(game),
+	);
+	[game.wordlistScroll, game.wordlistScrollSpeed] = scrolling(
+		game,
+		game.wordlistScroll,
+		game.pointerScrollVertical,
+		game.wordlistScrollSpeed,
+		game.wordlistUserIsScrolling,
+		wordlistMaxScroll,
+	);
+
 	let list = [...game.puzzle.found];
 	// Sort the entire wordlist now so that each lemma's list is sorted
 	list.sort((a, b) => a.localeCompare(b));
@@ -129,19 +150,6 @@ export function wordlist(_time: DOMHighResTimeStamp, game: Game): boolean {
 		// Revealing answers, so show all words
 		lemmas = Array.from(Object.entries(game.puzzle.forms));
 	}
-
-	// Restrict scrolling
-	const wordlistMaxScroll = Math.max(
-		0,
-		game.wordlistHeight - wordlistHeight + SIZES.small(game),
-	);
-	[game.wordlistScroll, game.wordlistScrollSpeed] = scrolling(
-		game,
-		game.wordlistScroll,
-		game.wordlistScrollSpeed,
-		game.wordlistUserIsScrolling,
-		wordlistMaxScroll,
-	);
 
 	let textY = wordlistY + SIZES.tiny(game) - game.wordlistScroll;
 	const leftX = wordlistX + 2 * SIZES.tiny(game);

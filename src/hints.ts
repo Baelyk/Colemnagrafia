@@ -1,4 +1,9 @@
-import { Interaction, interacted, interacting } from "./listen";
+import {
+	Interaction,
+	interacted,
+	interacting,
+	isUserScrolling,
+} from "./listen";
 import { type Game, main } from "./main";
 import {
 	COLORS,
@@ -105,10 +110,13 @@ export function hints(
 
 		hintsY += SIZES.small(game);
 
+		game.hintsUserIsScrolling =
+			isUserScrolling(game) ?? game.hintsUserIsScrolling;
 		const hintsMaxScroll = Math.max(0, game.hintsHeight - game.height);
 		[game.hintsScroll, game.hintsScrollSpeed] = scrolling(
 			game,
 			game.hintsScroll,
+			game.pointerScrollVertical,
 			game.hintsScrollSpeed,
 			game.hintsUserIsScrolling,
 			hintsMaxScroll,
@@ -137,12 +145,13 @@ export function hints(
 		const remainingWordsHeader = game.lang.hints.remainingWords;
 		game.ctx.font = `bold ${SIZES.small(game)}px ${FONTS.word}`;
 		game.ctx.fillText(remainingWordsHeader, hintsX + hintsPadding, hintsY);
+		// Substract half cellSize so visually looks good with top row text being
+		// close to the bottom of the cell
 		hintsY +=
 			getTextHeight(game.ctx, remainingWordsHeader) -
 			cellSize / 2 +
 			SIZES.teeny(game);
 
-		const tableY = hintsY;
 		game.ctx.font = `${SIZES.tiny(game)}px ${FONTS.word}`;
 		game.ctx.textAlign = "center";
 		game.ctx.textBaseline = "middle";
@@ -168,27 +177,24 @@ export function hints(
 		// Table width includes padding
 		const tableWidth = (lengths.length + 2) * cellSize + 2 * SIZES.small(game);
 		const tableHeight = cellSize * (letters.length + 2);
+		const tableX = hintsX + SIZES.small(game) - game.hintsTableScroll;
+		const tableY = hintsY;
 
-		// Both being true means the user just started scrolling (or tapping)
-		if (game.pointerDown != null && game.hintsTableUserIsScrolling) {
-			game.ctx.beginPath();
-			game.ctx.rect(0, tableY, tableWidth, tableHeight);
-			if (!interacting(game, Interaction.Hover)) {
-				// Pointer isn't inside the table, so don't scroll table
-				game.hintsTableUserIsScrolling = false;
-			}
-		}
-
+		// Scroll box has table y-values, but the whole width of the hints box
+		game.ctx.beginPath();
+		game.ctx.rect(hintsX, tableY, hintsWidth, tableHeight);
+		game.hintsTableUserIsScrolling =
+			isUserScrolling(game) ?? game.hintsTableUserIsScrolling;
 		const hintsTableMaxScroll = Math.max(0, tableWidth - hintsWidth);
 		[game.hintsTableScroll, game.hintsTableScrollSpeed] = scrolling(
 			game,
 			game.hintsTableScroll,
+			game.pointerScrollHorizontal,
 			game.hintsTableScrollSpeed,
 			game.hintsTableUserIsScrolling,
 			hintsTableMaxScroll,
 		);
 
-		const tableX = hintsX + SIZES.small(game) - game.hintsTableScroll;
 		game.ctx.textBaseline = "top";
 		for (let j = 0; j < lengths.length; j++) {
 			game.ctx.fillText(

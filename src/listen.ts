@@ -5,7 +5,7 @@ import { SIZES, resizeCanvas } from "./utils";
 export interface PointerData {
 	x: number;
 	y: number;
-	time: DOMHighResTimeStamp | null;
+	new: boolean;
 }
 
 export enum Interaction {
@@ -81,17 +81,64 @@ export function interacting(game: Game, interaction: Interaction): boolean {
 export function interacted(game: Game) {
 	game.pointerDown = null;
 	game.pointerUp = null;
+	game.pointerScrollVertical = 0;
+	game.pointerScrollHorizontal = 0;
+}
+
+export function isUserScrolling(
+	game: Game,
+	//scrollDelta: number,
+): boolean | null {
+	// Check for scrolling, i.e. pointer newly down and in path
+	if (
+		game.pointerDown?.new &&
+		game.ctx.isPointInPath(game.pointerDown.x, game.pointerDown.y)
+	) {
+		// Pointer drag scrolling
+		return true;
+	} else if (
+		//scrollDelta > 0 &&
+		game.pointerScrollIsWheel &&
+		game.ctx.isPointInPath(game.pointerX, game.pointerY)
+	) {
+		// Mouse wheel scrolling
+		return true;
+	} else if (
+		game.pointerUp?.new ||
+		game.pointerDown == null ||
+		game.pointerScrollIsWheel
+	) {
+		// Not scrolling
+		return false;
+	}
+
+	return null;
 }
 
 /**
- * If the pointer has gone through a down and up cycle without being marked as
- * interacted, mark it as interacted now to reset interaction state.
+ * Reset pointer state at the end of a tick to clean up missed clicks, remove
+ * new status from downs and ups, and reset scrolling state.
  */
 export function gobbleMissedInteractions(game: Game) {
+	// If the pointer has gone through a down and up cycle without being marked as
+	// interacted, mark it as interacted now to reset interaction state.
 	if (game.pointerDown != null && game.pointerUp != null) {
 		game.pointerDown = null;
 		game.pointerUp = null;
 	}
+
+	// Remove new from pointerDown/Up
+	if (game.pointerDown?.new) {
+		game.pointerDown.new = false;
+	}
+	if (game.pointerUp?.new) {
+		game.pointerUp.new = false;
+	}
+
+	// Scrolls are always missed
+	game.pointerScrollVertical = 0;
+	game.pointerScrollHorizontal = 0;
+	game.pointerScrollIsWheel = false;
 }
 
 export function listen(game: Game) {
@@ -102,20 +149,12 @@ export function listen(game: Game) {
 		game.pointerDown = {
 			x: event.clientX * game.scaling,
 			y: event.clientY * game.scaling,
-			time: null,
+			new: true,
 		};
 		game.pointerX = event.clientX * game.scaling;
 		game.pointerY = event.clientY * game.scaling;
 
 		game.wordMessage = null;
-
-		if (game.wordlistIsOpen) {
-			game.wordlistUserIsScrolling = true;
-		}
-		if (game.hintsOpen) {
-			game.hintsUserIsScrolling = true;
-			game.hintsTableUserIsScrolling = true;
-		}
 
 		window.requestAnimationFrame((time) => main(time, game));
 	});
@@ -129,13 +168,10 @@ export function listen(game: Game) {
 
 	window.addEventListener("wheel", (event) => {
 		if (DEBUG.eventLogging) console.log("wheel");
-		if (game.wordlistIsOpen) {
-			game.wordlistScroll += event.deltaY;
-		}
-		if (game.hintsOpen) {
-			game.hintsScroll += event.deltaY;
-			game.hintsTableScroll += event.deltaX;
-		}
+
+		game.pointerScrollVertical += event.deltaY;
+		game.pointerScrollHorizontal += event.deltaX;
+		game.pointerScrollIsWheel = true;
 
 		window.requestAnimationFrame((time) => main(time, game));
 	});
@@ -162,36 +198,9 @@ export function listen(game: Game) {
 		// Handle scrolling when pointer is a touch or the pointer is down, ignoring
 		// e.g. mouse movements
 		if (event.pointerType === "touch" || event.pressure >= 0.5) {
-			if (game.wordlistIsOpen) {
-				game.wordlistScroll -= event.movementY;
-				game.wordlistScrollSpeed = event.movementY;
-				game.wordlistUserIsScrolling = true;
-			}
-			if (game.hintsOpen) {
-				if (game.hintsTableUserIsScrolling) {
-					if (Math.abs(event.movementY) - Math.abs(event.movementX) > 2) {
-						// User is scrolling in the table, but y-scrolling is greater than
-						// x-scrolling, so only scroll the hints page
-						game.hintsTableUserIsScrolling = false;
-					} else {
-						// User is scrolling in the table
-						game.hintsUserIsScrolling = false;
-					}
-				} else {
-					game.hintsUserIsScrolling = true;
-				}
-
-				if (game.hintsUserIsScrolling) {
-					game.hintsScroll -= event.movementY;
-					game.hintsScrollSpeed = event.movementY;
-					game.hintsUserIsScrolling = true;
-				}
-				if (game.hintsTableUserIsScrolling) {
-					game.hintsTableScroll -= event.movementX;
-					game.hintsTableScrollSpeed = event.movementX;
-					game.hintsTableUserIsScrolling = true;
-				}
-			}
+			game.pointerScrollVertical -= event.movementY;
+			game.pointerScrollHorizontal -= event.movementX;
+			game.pointerScrollIsWheel = false;
 		}
 	});
 
@@ -201,16 +210,8 @@ export function listen(game: Game) {
 		game.pointerUp = {
 			x: event.clientX * game.scaling,
 			y: event.clientY * game.scaling,
-			time: null,
+			new: true,
 		};
-
-		if (game.wordlistIsOpen) {
-			game.wordlistUserIsScrolling = false;
-		}
-		if (game.hintsOpen) {
-			game.hintsUserIsScrolling = false;
-			game.hintsTableUserIsScrolling = false;
-		}
 
 		window.requestAnimationFrame((time) => main(time, game));
 	});
