@@ -3,11 +3,13 @@ use rand_chacha::ChaCha8Rng;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use unidecode::unidecode;
+use wasm_bindgen::prelude::*;
 
 use crate::palabras;
 use crate::Error;
 
 #[derive(Clone, Deserialize, Serialize)]
+#[wasm_bindgen]
 pub struct Puzzle {
     letters: Vec<char>,
     words: HashMap<String, HashSet<String>>,

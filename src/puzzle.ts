@@ -1,10 +1,6 @@
-import { invoke } from "@tauri-apps/api/core";
-import { Store } from "@tauri-apps/plugin-store";
-import _puzzles from "./assets/puzzles.json";
 import { DEBUG, type Game } from "./main";
 import { isPangram, removeAccents, scoreWord } from "./utils";
-
-const puzzles = _puzzles as unknown as { [key in string]?: Puzzle };
+import { dailyPuzzle } from "../puzzle-generator/pkg/";
 
 export type WordMap = { [key: string]: string[] };
 
@@ -40,10 +36,8 @@ export interface SerializableHintsData {
 }
 
 export async function getPuzzle(game: Game, forceNewPuzzle?: "daily" | "new") {
-	const today = new Date(Date.now()).toDateString();
-
 	if (forceNewPuzzle == null) {
-		const loadedPuzzle = await loadPuzzle(today);
+		const loadedPuzzle = await loadPuzzle();
 		if (loadedPuzzle != null) {
 			const { puzzle, hintsPuzzle, hintsFound } = loadedPuzzle;
 			game.puzzle = puzzle;
@@ -56,11 +50,22 @@ export async function getPuzzle(game: Game, forceNewPuzzle?: "daily" | "new") {
 
 	console.log("Failed to load puzzle, attempting to create puzzle");
 
-	const puzzle = await createDailyPuzzle(today);
+	// Unset game.puzzle to display loading screen
+	game.puzzle.letters = [];
+
+	// Try to create the puzzle
+	let puzzle;
+	try {
+		puzzle = await createDailyPuzzle();
+	} catch (error) {
+		console.error("Error creating daily puzzle:");
+		console.error(error);
+	}
 	if (puzzle == null) {
 		game.errorText = "Failed to create new daily puzzle";
 		return;
 	}
+
 	game.puzzle = puzzle;
 	[game.hintsPuzzle, game.hintsFound] = getPuzzleHints(game.puzzle);
 	game.queenBeeReached = false;
@@ -93,11 +98,16 @@ export async function restartPuzzle(game: Game) {
 }
 
 export async function savePuzzle(game: Game) {
-	if (window.__TAURI__) {
-		savePuzzleToStore(game);
-	} else {
-		savePuzzleToWebStorage(game);
-	}
+	console.log("Saving puzzle to web storage");
+	window.localStorage.setItem("puzzle", JSON.stringify(game.puzzle));
+	window.localStorage.setItem(
+		"hints-puzzle",
+		JSON.stringify(serializeHints(game.hintsPuzzle)),
+	);
+	window.localStorage.setItem(
+		"hints-found",
+		JSON.stringify(serializeHints(game.hintsFound)),
+	);
 }
 
 export function submitWord(game: Game, word?: string, save = true) {
@@ -158,30 +168,6 @@ export function submitWord(game: Game, word?: string, save = true) {
 	}
 }
 
-async function savePuzzleToStore(game: Game) {
-	console.log("Saving puzzle state");
-	const store = new Store("store.dat");
-	console.debug("To store", game.puzzle);
-	await store.set("puzzle", game.puzzle);
-	await store.set("hints-puzzle", serializeHints(game.hintsPuzzle));
-	await store.set("hints-found", serializeHints(game.hintsFound));
-	// Manually save the store now as well (instead of hoping for a graceful exit)
-	await store.save();
-}
-
-async function savePuzzleToWebStorage(game: Game) {
-	console.log("Saving puzzle to web storage");
-	window.localStorage.setItem("puzzle", JSON.stringify(game.puzzle));
-	window.localStorage.setItem(
-		"hints-puzzle",
-		JSON.stringify(serializeHints(game.hintsPuzzle)),
-	);
-	window.localStorage.setItem(
-		"hints-found",
-		JSON.stringify(serializeHints(game.hintsFound)),
-	);
-}
-
 function getPuzzleHints(puzzle: Puzzle): [HintsData, HintsData] {
 	const hintsPuzzle: HintsData = {
 		pangrams: 0,
@@ -232,55 +218,7 @@ function deserializeHints(hints: SerializableHintsData): HintsData {
 	};
 }
 
-async function loadPuzzleFromStore(day: string): Promise<{
-	puzzle: Puzzle;
-	hintsPuzzle: HintsData;
-	hintsFound: HintsData;
-} | null> {
-	if (window.__TAURI__ == null) {
-		console.error("Unable to load puzzle from Store outside of Tauri");
-		return null;
-	}
-	const store = new Store("store.dat");
-
-	let storedPuzzle: Puzzle | null = null;
-	let storedPuzzleDate: string | null = null;
-	let storedHintsPuzzle: SerializableHintsData | null = null;
-	let storedHintsFound: SerializableHintsData | null = null;
-
-	try {
-		console.log("Loading puzzle...");
-		storedPuzzle = await store.get<Puzzle>("puzzle");
-		storedPuzzleDate = await store.get<string>("puzzle-date");
-		storedHintsPuzzle = await store.get<SerializableHintsData>("hints-puzzle");
-		storedHintsFound = await store.get<SerializableHintsData>("hints-found");
-	} catch (error) {
-		console.error("Failed to get stored data:");
-		console.error(error);
-	}
-
-	// If some piece of the puzzle data is missing or this is not the requested day's puzzle, return null to indicate failure
-	if (
-		storedPuzzleDate == null ||
-		storedPuzzleDate !== day ||
-		storedPuzzle == null ||
-		storedHintsPuzzle == null ||
-		storedHintsFound == null
-	) {
-		return null;
-	}
-
-	console.debug(`Loaded stored puzzle state from ${storedPuzzleDate}`);
-	console.debug(storedPuzzle);
-	console.log("Stored puzzle is from today, using it");
-	return {
-		puzzle: storedPuzzle,
-		hintsPuzzle: deserializeHints(storedHintsPuzzle),
-		hintsFound: deserializeHints(storedHintsFound),
-	};
-}
-
-async function loadPuzzleFromWebStorage(_day: string): Promise<{
+async function loadPuzzle(): Promise<{
 	puzzle: Puzzle;
 	hintsPuzzle: HintsData;
 	hintsFound: HintsData;
@@ -306,28 +244,12 @@ async function loadPuzzleFromWebStorage(_day: string): Promise<{
 	return { puzzle, hintsPuzzle, hintsFound };
 }
 
-async function loadPuzzle(day: string): Promise<{
-	puzzle: Puzzle;
-	hintsPuzzle: HintsData;
-	hintsFound: HintsData;
-} | null> {
-	if (window.__TAURI__) {
-		return await loadPuzzleFromStore(day);
-	}
-
-	return await loadPuzzleFromWebStorage(day);
-}
-
-async function createDailyPuzzleFromFile(_day: string): Promise<Puzzle | null> {
-	console.log("Getting puzzle from file");
-	const today = Math.floor(Date.now() / (1000 * 60 * 60 * 24)).toString();
-	console.log(`\tGetting daily puzzle ${today}`);
-	const puzzle = puzzles[today];
-	if (puzzle == null) {
-		console.warn(`Unable to get daily puzzle ${today}`);
-		return null;
-	}
-	console.debug(puzzle);
+async function createDailyPuzzle(day?: number): Promise<Puzzle | null> {
+	const puzzleDay = day ?? Math.floor(Date.now() / (1000 * 60 * 60 * 24));
+	console.log(`Generating puzzle for day ${puzzleDay} with WASM...`);
+	const puzzle = JSON.parse(await dailyPuzzle(puzzleDay)) as PuzzleData;
+	console.log(puzzle);
+	console.log("Puzzle generated");
 
 	return {
 		letters: puzzle.letters.map((l) => l.toUpperCase()),
@@ -344,45 +266,4 @@ async function createDailyPuzzleFromFile(_day: string): Promise<Puzzle | null> {
 		justFound: [],
 		score: 0,
 	};
-}
-
-async function createDailyPuzzleFromTauri(day: string): Promise<Puzzle | null> {
-	if (window.__TAURI__ == null) {
-		console.error("Unable to create daily puzzle outside of Tauri");
-		return null;
-	}
-
-	console.log("Creating a new daily puzzle...");
-	try {
-		const puzzle = (await invoke("daily_puzzle")) as PuzzleData;
-		const store = new Store("store.dat");
-		await store.set("puzzle-date", day);
-		return {
-			letters: puzzle.letters.map((l) => l.toUpperCase()),
-			words: puzzle.words,
-			lemmas: puzzle.lemmas,
-			forms: puzzle.forms,
-			pangrams: puzzle.pangrams,
-			maxScore: Object.values(puzzle.words)
-				.flat()
-				.reduce((sum, word) => sum + scoreWord(word, puzzle.pangrams), 0),
-			word: "",
-			found: [],
-			justFound: [],
-			score: 0,
-		};
-	} catch (error) {
-		console.error("Failed to create daily puzzle:");
-		console.error(error);
-	}
-
-	return null;
-}
-
-async function createDailyPuzzle(day: string): Promise<Puzzle | null> {
-	if (window.__TAURI__) {
-		return await createDailyPuzzleFromTauri(day);
-	}
-
-	return await createDailyPuzzleFromFile(day);
 }

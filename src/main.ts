@@ -10,12 +10,6 @@ import { word } from "./word";
 import { wordlist } from "./wordlist";
 import { Lang, es } from "./lang";
 
-declare global {
-	interface Window {
-		__TAURI__?: unknown;
-	}
-}
-
 export const DEBUG = {
 	allowAnyWord: false,
 	foundAllWords: false,
@@ -82,13 +76,11 @@ function components(time: DOMHighResTimeStamp, game: Game) {
 	}
 
 	// If there is no puzzle, display a loading message in the splash screen
-	if (game.puzzle.letters.length === 0) {
-		try {
-			loading(time, game);
-		} catch (error) {
-			console.error(`Error during component \`loading\`: ${error}`);
-			console.error(error);
-		}
+	try {
+		loading(time, game);
+	} catch (error) {
+		console.error(`Error during component \`loading\`: ${error}`);
+		console.error(error);
 	}
 
 	try {
@@ -323,7 +315,7 @@ export interface Game {
 }
 
 if (typeof window !== "undefined") {
-	window.addEventListener("DOMContentLoaded", async () => {
+	(async () => {
 		const game = init();
 		if (game == null) {
 			console.error("Error initializing game");
@@ -345,5 +337,5 @@ if (typeof window !== "undefined") {
 		listen(game);
 
 		window.requestAnimationFrame((time) => main(time, game));
-	});
+	})();
 }

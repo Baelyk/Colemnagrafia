@@ -25,6 +25,19 @@ export function error(_time: DOMHighResTimeStamp, game: Game) {
 }
 
 export function loading(time: DOMHighResTimeStamp, game: Game) {
+	// Only display the loading screen if the puzzle has no letters
+	if (game.puzzle.letters.length !== 0) {
+		// Unset splashscreen if previous loading
+		if (
+			game.splashScreenText != null &&
+			game.splashScreenText[0] === game.lang.loading.title
+		) {
+			game.splashScreenText = null;
+			window.requestAnimationFrame((time) => main(time, game));
+		}
+		return;
+	}
+
 	console.log("Loading...");
 	window.requestAnimationFrame((time) => main(time, game));
 
