@@ -16,6 +16,7 @@ pub struct Puzzle {
     lemmas: HashMap<String, String>,
     forms: HashMap<String, HashSet<String>>,
     pangrams: Vec<String>,
+    day: Option<u32>,
 }
 
 pub fn create_puzzle_from_letters(letters: Vec<char>) -> Result<Puzzle, Error> {
@@ -103,15 +104,16 @@ pub fn create_puzzle_from_letters(letters: Vec<char>) -> Result<Puzzle, Error> {
         lemmas: lemma_map,
         forms: forms_map,
         pangrams,
+        day: None,
     })
 }
 
-pub fn daily_puzzle(day: u64) -> Result<Puzzle, Error> {
+pub fn daily_puzzle(day: u32) -> Result<Puzzle, Error> {
     println!("Creating daily puzzle for day {}", day);
 
     // Create a random number generator seeded by days since the epoch
     let seed = day;
-    let mut rng = ChaCha8Rng::seed_from_u64(seed);
+    let mut rng = ChaCha8Rng::seed_from_u64(seed.into());
 
     let all_pangrams = palabras::PANGRAMS;
 
@@ -156,5 +158,8 @@ pub fn daily_puzzle(day: u64) -> Result<Puzzle, Error> {
     }
     println!("Took {} tries to create a puzzle", tries);
 
-    puzzle
+    puzzle.and_then(|mut puzzle| {
+        puzzle.day = Some(day);
+        Ok(puzzle)
+    })
 }

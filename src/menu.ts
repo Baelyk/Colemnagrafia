@@ -1,7 +1,7 @@
 import { hints } from "./hints";
 import { Interaction, interacted, interacting } from "./listen";
 import { type Game, main } from "./main";
-import { getPuzzle, restartPuzzle } from "./puzzle";
+import { restartPuzzle } from "./puzzle";
 import { COLORS, FONTS, SIZES, getTextHeight, wrapText } from "./utils";
 
 export function menuBar(time: DOMHighResTimeStamp, game: Game) {
@@ -79,7 +79,11 @@ function menu(
 			[
 				game.lang.menu.new,
 				() => {
-					getPuzzle(game, "daily");
+					// Delete the URL day param, if it exists, and update the page url to
+					// reload and get today's puzzle
+					const params = new URLSearchParams(window.location.search);
+					params.delete("day");
+					window.location.search = params.toString();
 					game.menuOpen = false;
 
 					window.requestAnimationFrame((time) => main(time, game));

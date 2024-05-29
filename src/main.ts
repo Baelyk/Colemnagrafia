@@ -183,6 +183,7 @@ export function init(): Game {
 		lemmas: {},
 		forms: {},
 		pangrams: [],
+		day: -1,
 		maxScore: 0,
 		word: "",
 		found: [],

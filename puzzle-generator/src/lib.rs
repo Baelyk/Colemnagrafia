@@ -1,4 +1,3 @@
-use puzzles::Puzzle;
 use wasm_bindgen::prelude::*;
 
 mod palabras;
@@ -31,5 +30,4 @@ pub async fn daily_puzzle(day: u32) -> Result<String, String> {
     puzzles::daily_puzzle(day.into())
         .and_then(|puzzle| Ok(serde_json::to_string(&puzzle)?))
         .or_else(|err| Err(err.to_string()))
-
 }
