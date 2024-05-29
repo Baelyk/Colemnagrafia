@@ -34,7 +34,7 @@ jobs:
       # Use wasm-pack to build puzzle-generator
       - name: Install wasm-pack
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
-      - run: wasm-pack build --out-dir puzzle-generator/pkg/ puzzle-generator/
+      - run: wasm-pack build puzzle-generator/
       # Use pnpm to build dist/
       - name: Setup pnpm
         uses: pnpm/action-setup@v3
