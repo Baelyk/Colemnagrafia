@@ -25,7 +25,9 @@ export enum Interaction {
  * Return if the pointer is interacting with the current path
  */
 export function interacting(game: Game, interaction: Interaction): boolean {
-	if (
+	if (interaction == Interaction.Hover) {
+		return game.ctx.isPointInPath(game.pointerX, game.pointerY);
+	} else if (
 		game.pointerUp != null ||
 		interaction === Interaction.Up ||
 		interaction === Interaction.AnyUp
@@ -62,8 +64,6 @@ export function interacting(game: Game, interaction: Interaction): boolean {
 		return game.ctx.isPointInPath(game.pointerDown.x, game.pointerDown.y);
 	} else if (interaction == Interaction.AnyDown) {
 		return game.pointerDown != null;
-	} else if (interaction == Interaction.Hover) {
-		return game.ctx.isPointInPath(game.pointerX, game.pointerY);
 	}
 	console.error(
 		"Unknown interaction state",
