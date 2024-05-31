@@ -52,6 +52,10 @@ export interface Lang {
 		missingCenter: string;
 		notInList: string;
 	};
+	calendar: {
+		date: (year: number, monthIndex: number) => string;
+		weekday: (weekday: number) => number;
+	};
 }
 
 export const en: Lang = {
@@ -150,6 +154,15 @@ export const en: Lang = {
 		tooShort: "Too short",
 		missingCenter: "Missing center letter",
 		notInList: "Not in word list",
+	},
+	calendar: {
+		date: (year: number, monthIndex: number) => {
+			return new Intl.DateTimeFormat("en-US", {
+				year: "numeric",
+				month: "long",
+			}).format(new Date(year, monthIndex));
+		},
+		weekday: (weekday: number) => weekday,
 	},
 };
 
@@ -252,5 +265,14 @@ export const es: Lang = {
 		tooShort: "Demasiado corta",
 		missingCenter: "Falta la letra central",
 		notInList: "No está en la lista",
+	},
+	calendar: {
+		date: (year: number, monthIndex: number) => {
+			return new Intl.DateTimeFormat("es-ES", {
+				year: "numeric",
+				month: "long",
+			}).format(new Date(year, monthIndex));
+		},
+		weekday: (weekday: number) => (weekday + 6) % 7,
 	},
 };

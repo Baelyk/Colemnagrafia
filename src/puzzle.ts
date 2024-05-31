@@ -1,5 +1,10 @@
 import { DEBUG, type Game } from "./main";
-import { isPangram, removeAccents, scoreWord } from "./utils";
+import {
+	getDaysSinceEpoch,
+	isPangram,
+	removeAccents,
+	scoreWord,
+} from "./utils";
 import { dailyPuzzle } from "../puzzle-generator/pkg/";
 
 export type WordMap = { [key: string]: string[] };
@@ -37,7 +42,7 @@ export interface SerializableHintsData {
 }
 
 export async function getPuzzle(game: Game, day?: number) {
-	const today = Math.floor(Date.now() / (1000 * 60 * 60 * 24));
+	const today = getDaysSinceEpoch();
 	if (day == null) {
 		// If the day is not specified use the URL parameter, or default to today
 		const params = new URLSearchParams(window.location.search);

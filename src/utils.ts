@@ -268,3 +268,33 @@ export function scrolling(
 
 	return [newScroll, newScrollSpeed];
 }
+
+/**
+ * Get the number of days since the epoch for this date.
+ */
+export function getDaysSinceEpoch(date?: Date): number {
+	let ms = date == null ? Date.now() : date.valueOf();
+	return Math.floor(ms / (1000 * 60 * 60 * 24));
+}
+
+/**
+ * Path a triangle centered at x, y with specified radius. Rotated to have a
+ * vertex at the right. Does not draw!
+ */
+export function triangle(
+	ctx: CanvasRenderingContext2D,
+	x: number,
+	y: number,
+	radius: number,
+) {
+	const sides = 3;
+	const radians = (2 * Math.PI) / sides;
+
+	ctx.moveTo(x + radius, y);
+	for (let i = 1; i <= sides; i++) {
+		ctx.lineTo(
+			x + Math.cos(radians * i) * radius,
+			y + Math.sin(radians * i) * radius,
+		);
+	}
+}

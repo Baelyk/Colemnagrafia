@@ -8,7 +8,7 @@ import { COLORS, SIZES, resizeCanvas } from "./utils";
 import { wheel } from "./wheel";
 import { word } from "./word";
 import { wordlist } from "./wordlist";
-import { Lang, es } from "./lang";
+import { Lang, es, en } from "./lang";
 
 export const DEBUG = {
 	allowAnyWord: false,
@@ -203,6 +203,12 @@ export function init(): Game {
 		starts: new Map(),
 	};
 
+	let lang = es;
+	const params = new URLSearchParams(window.location.search);
+	if (params.get("lang") === "en") {
+		lang = en;
+	}
+
 	return {
 		width,
 		height,
@@ -210,7 +216,7 @@ export function init(): Game {
 		ctx,
 		tagName: "game",
 		darkMode,
-		lang: es,
+		lang,
 		panes: null,
 
 		errorText: null,
@@ -252,6 +258,8 @@ export function init(): Game {
 		hintsTableScroll: 0,
 		hintsTableScrollSpeed: 0,
 		hintsTableUserIsScrolling: false,
+
+		calendarDate: new Date(),
 	};
 }
 
@@ -313,6 +321,8 @@ export interface Game {
 	hintsTableScroll: number;
 	hintsTableScrollSpeed: number;
 	hintsTableUserIsScrolling: boolean;
+
+	calendarDate: Date;
 }
 
 if (typeof window !== "undefined") {
