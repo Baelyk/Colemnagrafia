@@ -1,3 +1,5 @@
+import { dateFromDaysSinceEpoch } from "./utils";
+
 export interface Lang {
 	title: string;
 	error: {
@@ -8,9 +10,13 @@ export interface Lang {
 		title: string;
 		description: string;
 	};
+	menuBar: {
+		date: (day: number) => string;
+	};
 	menu: {
 		restart: string;
 		new: string;
+		old: string;
 		reveal: (revealing: boolean) => string;
 		darkMode: (darkModeOn: boolean) => string;
 	};
@@ -55,6 +61,11 @@ export interface Lang {
 	calendar: {
 		date: (year: number, monthIndex: number) => string;
 		weekday: (weekday: number) => number;
+		header: string;
+		unplayable: string;
+		playable: string;
+		today: string;
+		started: string;
 	};
 }
 
@@ -68,9 +79,19 @@ export const en: Lang = {
 		title: "Spelling Bee",
 		description: "Attempting to load in progress puzzle of create new puzzle",
 	},
+	menuBar: {
+		date: (day: number) => {
+			return new Intl.DateTimeFormat("en-US", {
+				month: "long",
+				day: "numeric",
+				year: "numeric",
+			}).format(dateFromDaysSinceEpoch(day));
+		},
+	},
 	menu: {
 		restart: "Restart",
 		new: "Check for new puzzle",
+		old: "Play previous puzzle",
 		reveal: (revealing: boolean) =>
 			revealing ? "Stop revealing answers" : "Reveal answers",
 		darkMode: (darkModeOn: boolean) =>
@@ -163,6 +184,11 @@ export const en: Lang = {
 			}).format(new Date(year, monthIndex));
 		},
 		weekday: (weekday: number) => weekday,
+		header: "Select previous daily puzzle",
+		unplayable: "Unplayable",
+		playable: "Playable",
+		today: "Today",
+		started: "Started",
 	},
 };
 
@@ -176,9 +202,19 @@ export const es: Lang = {
 		title: "Colemnagrafía",
 		description: "Intentando cargar o crear un puzle",
 	},
+	menuBar: {
+		date: (day: number) => {
+			return new Intl.DateTimeFormat("es-ES", {
+				month: "long",
+				day: "numeric",
+				year: "numeric",
+			}).format(dateFromDaysSinceEpoch(day));
+		},
+	},
 	menu: {
 		restart: "Reiniciar",
 		new: "Buscar un puzle nuevo",
+		old: "Jugar un puzle anterior",
 		reveal: (revealing: boolean) =>
 			revealing ? "Parar de mostrar respuestas" : "Mostrar respuestas",
 		darkMode: (darkModeOn: boolean) =>
@@ -274,5 +310,10 @@ export const es: Lang = {
 			}).format(new Date(year, monthIndex));
 		},
 		weekday: (weekday: number) => (weekday + 6) % 7,
+		header: "Elegir un puzle anterior",
+		unplayable: "No disponible",
+		playable: "Disponible",
+		today: "Hoy",
+		started: "Empezado",
 	},
 };

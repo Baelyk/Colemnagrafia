@@ -1,3 +1,4 @@
+import { calendar } from "./calendar";
 import { hints } from "./hints";
 import { Interaction, interacted, interacting } from "./listen";
 import { type Game, main } from "./main";
@@ -21,10 +22,12 @@ export function menuBar(time: DOMHighResTimeStamp, game: Game) {
 	if (game.hintsOpen) {
 		return;
 	}
+
+	date(time, game, menuBarY, menuBarPadding);
 }
 
 function menu(
-	_time: DOMHighResTimeStamp,
+	time: DOMHighResTimeStamp,
 	game: Game,
 	menuY: number,
 	menuWidth: number,
@@ -90,6 +93,14 @@ function menu(
 				},
 			],
 			[
+				game.lang.menu.old,
+				() => {
+					game.menuSelectingPuzzle = true;
+
+					window.requestAnimationFrame((time) => main(time, game));
+				},
+			],
+			[
 				game.lang.menu.reveal(game.revealAnswers),
 				() => {
 					game.revealAnswers = !game.revealAnswers;
@@ -119,42 +130,73 @@ function menu(
 
 		let menuY = 3 * SIZES.big(game);
 
-		menuOptions.forEach(([menuOptionText, menuOptionAction]) => {
-			game.ctx.fillStyle = COLORS.fg(game);
-			const textHeight = wrapText(
-				game.ctx,
-				menuOptionText,
-				menuX + SIZES.small(game),
-				menuY + menuButtonHeight / 2,
-				menuButtonWidth - 2 * SIZES.small(game),
-			);
-			const buttonHeight = textHeight + SIZES.small(game);
-			game.ctx.beginPath();
-			game.ctx.roundRect(
-				menuX,
-				menuY,
-				menuButtonWidth,
-				buttonHeight,
-				SIZES.teeny(game),
-			);
-			game.ctx.strokeStyle = COLORS.fg(game);
-			game.ctx.stroke();
-			menuY += buttonHeight + SIZES.small(game);
-			if (interacting(game, Interaction.Down)) {
-				interacted(game);
-
-				menuOptionAction();
-
-				window.requestAnimationFrame((time) => main(time, game));
+		if (game.menuSelectingPuzzle) {
+			const selected = calendar(time, game, 0, SIZES.medium(game), game.width);
+			if (selected != null) {
+				// Delete the URL day param, if it exists, and update the page url to
+				// reload and get the selected day's puzzle
+				const params = new URLSearchParams(window.location.search);
+				params.set("day", selected.toString());
+				window.location.search = params.toString();
+				game.menuOpen = false;
+				game.menuSelectingPuzzle = false;
 			}
-		});
+		} else {
+			menuOptions.forEach(([menuOptionText, menuOptionAction]) => {
+				game.ctx.fillStyle = COLORS.fg(game);
+				const textHeight = wrapText(
+					game.ctx,
+					menuOptionText,
+					menuX + SIZES.small(game),
+					menuY + menuButtonHeight / 2,
+					menuButtonWidth - 2 * SIZES.small(game),
+				);
+				const buttonHeight = textHeight + SIZES.small(game);
+				game.ctx.beginPath();
+				game.ctx.roundRect(
+					menuX,
+					menuY,
+					menuButtonWidth,
+					buttonHeight,
+					SIZES.teeny(game),
+				);
+				game.ctx.strokeStyle = COLORS.fg(game);
+				game.ctx.stroke();
+				menuY += buttonHeight + SIZES.small(game);
+				if (interacting(game, Interaction.Down)) {
+					interacted(game);
+
+					menuOptionAction();
+
+					window.requestAnimationFrame((time) => main(time, game));
+				}
+			});
+		}
 
 		// Any interaction not on a menu option closes the menu
 		if (interacting(game, Interaction.AnyDown)) {
 			interacted(game);
 			game.menuOpen = false;
+			game.menuSelectingPuzzle = false;
 
 			window.requestAnimationFrame((time) => main(time, game));
 		}
 	}
+}
+
+function date(
+	_time: DOMHighResTimeStamp,
+	game: Game,
+	menuBarY: number,
+	menuBarPadding: number,
+) {
+	game.ctx.font = `bold ${SIZES.tiny(game)}px ${FONTS.word}`;
+	game.ctx.textAlign = "left";
+	game.ctx.textBaseline = "middle";
+	game.ctx.fillStyle = COLORS.fg(game);
+	game.ctx.fillText(
+		game.lang.menuBar.date(game.puzzle.day),
+		menuBarPadding,
+		menuBarY + menuBarPadding,
+	);
 }

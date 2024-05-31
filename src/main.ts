@@ -247,6 +247,7 @@ export function init(): Game {
 		wordlistUserIsScrolling: false,
 
 		menuOpen: false,
+		menuSelectingPuzzle: false,
 
 		hintsOpen: false,
 		hintsHeight: 0,
@@ -310,6 +311,7 @@ export interface Game {
 	wordlistUserIsScrolling: boolean;
 
 	menuOpen: boolean;
+	menuSelectingPuzzle: boolean;
 
 	hintsOpen: boolean;
 	hintsHeight: number;

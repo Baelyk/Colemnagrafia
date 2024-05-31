@@ -277,6 +277,11 @@ export function getDaysSinceEpoch(date?: Date): number {
 	return Math.floor(ms / (1000 * 60 * 60 * 24));
 }
 
+export function dateFromDaysSinceEpoch(days: number): Date {
+	let ms = days * (1000 * 60 * 60 * 24);
+	return new Date(ms);
+}
+
 /**
  * Path a triangle centered at x, y with specified radius. Rotated to have a
  * vertex at the right. Does not draw!
