@@ -259,12 +259,18 @@ function getPuzzleHints(puzzle: Puzzle): [HintsData, HintsData] {
 
 	const maxLength = Math.max(...words.map((word) => word.length));
 	for (const letter of [...puzzle.letters].sort()) {
-		hintsPuzzle.lengths.set(letter.toLowerCase(), Array(maxLength + 1).fill(0));
-		hintsFound.lengths.set(letter.toLowerCase(), Array(maxLength + 1).fill(0));
+		hintsPuzzle.lengths.set(
+			removeAccents(letter.toLowerCase()),
+			Array(maxLength + 1).fill(0),
+		);
+		hintsFound.lengths.set(
+			removeAccents(letter.toLowerCase()),
+			Array(maxLength + 1).fill(0),
+		);
 	}
 
 	for (const word of words) {
-		(hintsPuzzle.lengths.get(word[0]) ?? [])[word.length] += 1;
+		(hintsPuzzle.lengths.get(removeAccents(word[0])) ?? [])[word.length] += 1;
 
 		const start = word.substring(0, 2);
 		const numStarts = hintsPuzzle.starts.get(start) ?? 0;
