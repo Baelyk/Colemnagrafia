@@ -24,7 +24,19 @@ export enum Interaction {
 /**
  * Return if the pointer is interacting with the current path
  */
-export function interacting(game: Game, interaction: Interaction): boolean {
+export function interacting(
+	game: Game,
+	interaction: Interaction,
+	debug = false,
+): boolean {
+	if (debug) {
+		console.log(
+			interaction,
+			game.ctx.isPointInPath(game.pointerX, game.pointerY),
+			game.pointerDown,
+			game.pointerUp,
+		);
+	}
 	if (interaction == Interaction.Hover) {
 		return game.ctx.isPointInPath(game.pointerX, game.pointerY);
 	} else if (
