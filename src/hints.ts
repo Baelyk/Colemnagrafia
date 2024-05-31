@@ -62,6 +62,7 @@ export function hints(
 			game.panes != null
 				? game.height - hintsY - SIZES.small(game)
 				: game.height;
+		const hintsBottom = hintsY + hintsHeight;
 
 		game.ctx.fillStyle = COLORS.fg(game);
 		game.ctx.textAlign = "left";
@@ -388,7 +389,7 @@ export function hints(
 			// When interacting with a box, show a little info message over the hints
 
 			const interactiveHeight = SIZES.big(game);
-			const interactiveY = game.height - interactiveHeight - SIZES.tiny(game);
+			const interactiveY = hintsBottom - interactiveHeight - SIZES.tiny(game);
 			const interactiveWidth = hintsWidth - 2 * SIZES.big(game);
 			const interactiveX = hintsX + hintsWidth / 2 - interactiveWidth / 2;
 
