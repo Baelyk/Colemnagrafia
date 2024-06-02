@@ -19,7 +19,9 @@ export function menuBar(time: DOMHighResTimeStamp, game: Game) {
 	}
 
 	hints(time, game, menuBarY, menuBarPadding, menuHeight, menuX);
-	if (game.hintsOpen) {
+
+	// Don't show remaining menuBar items in single pane mode if hints open
+	if (game.panes == null && game.hintsOpen) {
 		return;
 	}
 
