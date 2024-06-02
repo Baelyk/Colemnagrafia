@@ -88,6 +88,7 @@ dependencies = [
  "unidecode",
  "wasm-bindgen",
  "wasm-bindgen-futures",
+ "words",
 ]
 
 [[package]]
@@ -290,3 +291,7 @@ dependencies = [
  "js-sys",
  "wasm-bindgen",
 ]
+
+[[package]]
+name = "words"
+version = "0.1.0"

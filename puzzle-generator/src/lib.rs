@@ -1,6 +1,5 @@
 use wasm_bindgen::prelude::*;
 
-mod palabras;
 pub mod puzzles;
 pub mod utils;
 

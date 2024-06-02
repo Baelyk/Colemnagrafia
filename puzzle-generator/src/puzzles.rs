@@ -5,7 +5,6 @@ use std::collections::{HashMap, HashSet};
 use unidecode::unidecode;
 use wasm_bindgen::prelude::*;
 
-use crate::palabras;
 use crate::Error;
 
 #[derive(Clone, Deserialize, Serialize)]
@@ -20,7 +19,7 @@ pub struct Puzzle {
 }
 
 pub fn create_puzzle_from_letters(letters: Vec<char>) -> Result<Puzzle, Error> {
-    let all_words = palabras::PALABRAS;
+    let all_words = words::palabras::PALABRAS;
 
     let letter_set: HashSet<char> = HashSet::from_iter(letters.iter().copied());
 
@@ -115,7 +114,7 @@ pub fn daily_puzzle(day: u32) -> Result<Puzzle, Error> {
     let seed = day;
     let mut rng = ChaCha8Rng::seed_from_u64(seed.into());
 
-    let all_pangrams = palabras::PANGRAMS;
+    let all_pangrams = words::palabras::PANGRAMS;
 
     let mut pangram;
     let mut letters: Vec<char>;
