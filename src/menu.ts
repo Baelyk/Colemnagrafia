@@ -2,7 +2,7 @@ import { calendar } from "./calendar";
 import { hints } from "./hints";
 import { Interaction, interacted, interacting } from "./listen";
 import { type Game, main } from "./main";
-import { restartPuzzle } from "./puzzle";
+import { getPuzzle, restartPuzzle } from "./puzzle";
 import { COLORS, FONTS, SIZES, getTextHeight, wrapText } from "./utils";
 
 export function menuBar(time: DOMHighResTimeStamp, game: Game) {
@@ -83,10 +83,13 @@ function menu(
 				game.lang.menu.new,
 				() => {
 					// Delete the URL day param, if it exists, and update the page url to
-					// reload and get today's puzzle
-					const params = new URLSearchParams(window.location.search);
+					// get today's puzzle
+					const url = new URL(window.location.toString());
+					const params = new URLSearchParams(url.search);
 					params.delete("day");
-					window.location.search = params.toString();
+					url.search = params.toString();
+					window.history.pushState(null, "", url.toString());
+					getPuzzle(game);
 					game.menuOpen = false;
 
 					window.requestAnimationFrame((time) => main(time, game));
@@ -134,10 +137,13 @@ function menu(
 			const selected = calendar(time, game, 0, SIZES.medium(game), game.width);
 			if (selected != null) {
 				// Delete the URL day param, if it exists, and update the page url to
-				// reload and get the selected day's puzzle
-				const params = new URLSearchParams(window.location.search);
+				// get the selected day's puzzle
+				const url = new URL(window.location.toString());
+				const params = new URLSearchParams(url.search);
 				params.set("day", selected.toString());
-				window.location.search = params.toString();
+				url.search = params.toString();
+				window.history.pushState(null, "", url.toString());
+				getPuzzle(game, selected);
 				game.menuOpen = false;
 				game.menuSelectingPuzzle = false;
 			}
