@@ -1,31 +1,26 @@
 {
-  "name": "spelling-bee-clone",
-  "private": true,
-  "version": "0.0.0",
-  "type": "module",
-  "scripts": {
-    "dev": "vite",
-    "build": "tsc && vite build",
-    "preview": "vite preview",
-    "tauri": "tauri"
-  },
-  "dependencies": {
-    "@tauri-apps/api": ">=2.0.0-beta.0",
-    "@tauri-apps/plugin-shell": ">=2.0.0-beta.0",
-    "@tauri-apps/plugin-store": "2.0.0-beta.2",
-    "vite-plugin-top-level-await": "^1.4.1",
-    "vite-plugin-wasm": "^3.3.0"
-  },
-  "devDependencies": {
-    "@tauri-apps/cli": ">=2.0.0-beta.0",
-    "canvas": "^2.11.2",
-    "canvas2svg": "^1.0.16",
-    "internal-ip": "^7.0.0",
-    "jsdom": "^24.0.0",
-    "ts-node": "11.0.0-beta.1",
-    "tsx": "^4.9.3",
-    "typescript": "^5.0.2",
-    "vite": "^5.0.0",
-    "xmldom": "^0.6.0"
-  }
+	"name": "Colemnagrafia",
+	"private": true,
+	"version": "0.0.0",
+	"type": "module",
+	"scripts": {
+		"dev": "vite",
+		"build": "tsc && vite build",
+		"preview": "vite preview"
+	},
+	"dependencies": {
+		"vite-plugin-top-level-await": "^1.4.1",
+		"vite-plugin-wasm": "^3.3.0"
+	},
+	"devDependencies": {
+		"canvas": "^2.11.2",
+		"canvas2svg": "^1.0.16",
+		"internal-ip": "^7.0.0",
+		"jsdom": "^24.0.0",
+		"ts-node": "11.0.0-beta.1",
+		"tsx": "^4.9.3",
+		"typescript": "^5.0.2",
+		"vite": "^5.0.0",
+		"xmldom": "^0.6.0"
+	}
 }
