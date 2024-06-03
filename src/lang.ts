@@ -227,26 +227,26 @@ export const es: Lang = {
 			let text = "";
 			if (remaining === 0) {
 				if (total === 1) {
-					text = "¡Encontraste la pangrama! Fue la única.";
+					text = "¡Encontraste el pangrama! Fue el único.";
 				} else {
-					text = `¡Encontraste todas las pangramas! Había ${total} al fin.`;
+					text = `¡Encontraste todos los pangramas! Había ${total} al fin.`;
 				}
 			} else {
 				if (remaining === 1) {
-					text = "Queda una pangrama más";
+					text = "Queda un pangrama más";
 				} else {
-					text = `Quedan ${remaining} otras pangramas más`;
+					text = `Quedan ${remaining} otros pangramas más`;
 				}
 				if (total === 1) {
-					text += " y es la única.";
+					text += " y es el único.";
 				} else {
 					text += `, de ${total} pangramas en total.`;
 				}
 				if (found === 0) {
 					if (total === 1) {
-						text += " Todavía no la has encontrado 😞.";
+						text += " Todavía no lo has encontrado 😞.";
 					} else {
-						text += " Todavía no has encontrado ninguna 😞.";
+						text += " Todavía no has encontrado ningún 😞.";
 					}
 				}
 			}
