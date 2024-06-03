@@ -209,6 +209,8 @@ export function init(): Game {
 		lang = en;
 	}
 
+	document.title = lang.title;
+
 	return {
 		width,
 		height,
