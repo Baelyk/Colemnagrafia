@@ -209,7 +209,9 @@ export function submitWord(game: Game, word?: string, save = true) {
 				if (isPangram(word, game.puzzle.pangrams)) {
 					game.hintsFound.pangrams += 1;
 				}
-				(game.hintsFound.lengths.get(word[0]) ?? [])[word.length] += 1;
+				(game.hintsFound.lengths.get(removeAccents(word)[0]) ?? [])[
+					word.length
+				] += 1;
 				const start = word.substring(0, 2);
 				const numStarts = game.hintsFound.starts.get(start) ?? 0;
 				game.hintsFound.starts.set(start, numStarts + 1);
