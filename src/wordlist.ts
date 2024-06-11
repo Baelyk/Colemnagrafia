@@ -138,11 +138,11 @@ export function wordlist(_time: DOMHighResTimeStamp, game: Game): boolean {
 	}
 	// Get the wordlist and sort it alphabetically
 	let lemmas = Array.from(lemmasFound.entries());
-	lemmas.sort((a, b) => a[0].localeCompare(b[0]));
 	if (game.revealAnswers) {
-		// Revealing answers, so show all words
+		// Revealing answers, so show all words instead
 		lemmas = Array.from(Object.entries(game.puzzle.forms));
 	}
+	lemmas.sort((a, b) => a[0].localeCompare(b[0]));
 
 	let textY = wordlistY + SIZES.tiny(game) - game.wordlistScroll;
 	const leftX = wordlistX + 2 * SIZES.tiny(game);
